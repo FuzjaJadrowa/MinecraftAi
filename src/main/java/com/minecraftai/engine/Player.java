@@ -6,10 +6,13 @@ public class Player {
 
     private float x, y, z;
     private float yaw, pitch;
-    private final float speed = 0.1f;
+    private final float speed = 0.06f;
     private float velocityY = 0;
     private final float gravity = 0.002f;
     private final float jumpStrength = 0.08f;
+    private final float eyeHeight = 1.7f;
+    private long lastBlockBreakTime = 0;
+    private final long blockBreakCooldown = 200_000_000L;
 
     private World world;
 
@@ -54,6 +57,14 @@ public class Player {
             z += dz;
         }
 
+        velocityY -= gravity;
+        if (!collides(x, y + velocityY, z)) {
+            y += velocityY;
+        } else {
+            velocityY = 0;
+        }
+
+
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && onGround()) {
             velocityY = jumpStrength;
         }
@@ -71,16 +82,42 @@ public class Player {
         }
     }
 
+    public Block getTargetBlock(World world, float maxDistance) {
+        float eyeX = x;
+        float eyeY = y + 1.7f;
+        float eyeZ = z;
+
+        float radYaw = (float)Math.toRadians(yaw);
+        float radPitch = (float)Math.toRadians(pitch);
+
+        float dirX = (float)(Math.sin(radYaw) * Math.cos(radPitch));
+        float dirY = (float)(Math.sin(radPitch));
+        float dirZ = (float)(-Math.cos(radYaw) * Math.cos(radPitch));
+
+        float step = 0.1f;
+        for (float t = 0; t <= maxDistance; t += step) {
+            float checkX = eyeX + dirX * t;
+            float checkY = eyeY + dirY * t;
+            float checkZ = eyeZ + dirZ * t;
+
+            for (Block b : world.getBlocks()) {
+                if ((int)checkX == b.getX() && (int)checkY == b.getY() && (int)checkZ == b.getZ()) {
+                    return b;
+                }
+            }
+        }
+        return null;
+    }
+
     private boolean onGround() {
         return collides(x, y - 0.05f, z);
     }
 
     private boolean collides(float nextX, float nextY, float nextZ) {
-        int blockX = (int) nextX;
-        int blockZ = (int) nextZ;
-        if (blockX >= 0 && blockX < 64 && blockZ >= 0 && blockZ < 64) {
-            float blockTop = 1.0f;
-            if (nextY < blockTop) return true;
+        for (Block b : world.getBlocks()) {
+            if (b.collidesWithPlayer(nextX, nextY, nextZ)) {
+                return true;
+            }
         }
         return false;
     }
@@ -94,9 +131,40 @@ public class Player {
         if (pitch < -90) pitch = -90;
     }
 
+    public float[] getCameraLookAt() {
+        float radYaw = (float)Math.toRadians(yaw);
+        float radPitch = (float)Math.toRadians(pitch);
+
+        float dirX = (float)(Math.sin(radYaw) * Math.cos(radPitch));
+        float dirY = (float)(Math.sin(radPitch));
+        float dirZ = (float)(-Math.cos(radYaw) * Math.cos(radPitch));
+
+        float eyeX = x;
+        float eyeY = y + eyeHeight;
+        float eyeZ = z;
+
+        float lookX = eyeX + dirX;
+        float lookY = eyeY + dirY;
+        float lookZ = eyeZ + dirZ;
+
+        return new float[]{eyeX, eyeY, eyeZ, lookX, lookY, lookZ};
+    }
+
+    public void tryBreakBlock(World world) {
+        long now = System.nanoTime();
+        if (now - lastBlockBreakTime < blockBreakCooldown) {
+            return;
+        }
+
+        Block target = getTargetBlock(world, 3f);
+        if (target != null) {
+            world.removeBlock(target.getX(), target.getY(), target.getZ());
+            lastBlockBreakTime = now;
+        }
+    }
+
     public float getX() { return x; }
     public float getY() { return y; }
     public float getZ() { return z; }
     public float getYaw() { return yaw; }
-    public float getPitch() { return pitch; }
 }

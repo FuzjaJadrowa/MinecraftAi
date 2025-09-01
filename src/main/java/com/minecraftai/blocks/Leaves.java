@@ -5,14 +5,14 @@ import com.minecraftai.engine.TextureLoader;
 
 import static org.lwjgl.opengl.GL11.*;
 
-public class Cobblestone extends Block {
+public class Leaves extends Block {
 
     private static int texture;
 
-    public Cobblestone(int x, int y, int z) {
+    public Leaves(int x, int y, int z) {
         super(x, y, z);
         if (texture == 0) {
-            texture = TextureLoader.loadTexture("/textures/block/cobblestone.png");
+            texture = TextureLoader.loadTexture("/textures/block/leaves.png");
         }
     }
 
