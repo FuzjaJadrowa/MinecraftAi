@@ -105,6 +105,14 @@ public class Game {
                 world.addBlock(placeX, placeY, placeZ, new Cobblestone(placeX, placeY, placeZ));
             }
 
+            if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+                int targetX = (int)(player.getX() + Math.sin(Math.toRadians(player.getYaw())));
+                int targetY = (int) player.getY();
+                int targetZ = (int)(player.getZ() - Math.cos(Math.toRadians(player.getYaw())));
+
+                world.removeBlock(targetX, targetY, targetZ);
+            }
+
             player.update(window);
 
             world.render();

@@ -9,5 +9,9 @@ public abstract class Block {
         this.z = z;
     }
 
+    public int getX() { return x; }
+    public int getY() { return y; }
+    public int getZ() { return z; }
+
     public abstract void render();
 }
