@@ -8,8 +8,8 @@ public class Player {
     private float yaw, pitch;
     private final float speed = 0.1f;
     private float velocityY = 0;
-    private final float gravity = 0.02f;
-    private final float jumpStrength = 0.25f;
+    private final float gravity = 0.002f;
+    private final float jumpStrength = 0.08f;
 
     private World world;
 
