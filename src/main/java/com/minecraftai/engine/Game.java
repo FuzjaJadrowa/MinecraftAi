@@ -1,5 +1,6 @@
 package com.minecraftai.engine;
 
+import com.minecraftai.blocks.Cobblestone;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 import static org.lwjgl.glfw.GLFW.*;
@@ -26,12 +27,26 @@ public class Game {
         if (!glfwInit())
             throw new IllegalStateException("Nie udało się zainicjalizować GLFW");
 
-        window = glfwCreateWindow(800, 600, "Minecraft AI Clone", NULL, NULL);
+        window = glfwCreateWindow(800, 600, "Minecraft AI", NULL, NULL);
         if (window == NULL)
             throw new RuntimeException("Nie udało się stworzyć okna");
 
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+        final double[] lastX = {400};
+        final double[] lastY = {300};
+
+        glfwSetCursorPosCallback(window, (win, xpos, ypos) -> {
+            double dx = xpos - lastX[0];
+            double dy = ypos - lastY[0];
+            lastX[0] = xpos;
+            lastY[0] = ypos;
+
+            player.addRotation((float) dx, (float) dy);
+        });
+
         glfwMakeContextCurrent(window);
-        glfwSwapInterval(1); // vsync
+        glfwSwapInterval(1);
         glfwShowWindow(window);
 
         GL.createCapabilities();
@@ -54,7 +69,7 @@ public class Game {
         glEnable(GL_COLOR_MATERIAL);
         glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
 
-        player = new Player();
+        player = new Player(world);
         world = new World();
     }
 
@@ -68,11 +83,27 @@ public class Game {
 
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
+
+            float radYaw = (float) Math.toRadians(player.getYaw());
+            float radPitch = (float) Math.toRadians(player.getPitch());
+
+            float dirX = (float) (Math.sin(radYaw) * Math.cos(radPitch));
+            float dirY = (float) Math.sin(radPitch);
+            float dirZ = (float) (-Math.cos(radYaw) * Math.cos(radPitch));
+
             lookAt(
-                    player.getX(), player.getY() + 5, player.getZ() + 15,
-                    8, 0, 8,
+                    player.getX(), player.getY() + 1.7f, player.getZ(),
+                    player.getX() + dirX, player.getY() + 1.7f + dirY, player.getZ() + dirZ,
                     0, 1, 0
             );
+
+            if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+                int placeX = (int)(player.getX() + Math.sin(Math.toRadians(player.getYaw())));
+                int placeY = (int) player.getY();
+                int placeZ = (int)(player.getZ() - Math.cos(Math.toRadians(player.getYaw())));
+
+                world.addBlock(placeX, placeY, placeZ, new Cobblestone(placeX, placeY, placeZ));
+            }
 
             player.update(window);
 

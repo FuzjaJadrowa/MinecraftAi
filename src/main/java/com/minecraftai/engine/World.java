@@ -2,23 +2,28 @@ package com.minecraftai.engine;
 
 import com.minecraftai.blocks.GrassBlock;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class World {
-    private Block[][] blocks;
+
+    public List<Block> blocks = new ArrayList<>();
 
     public World() {
-        blocks = new Block[16][16];
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                blocks[x][z] = new GrassBlock(x, 0, z);
+        for (int x=0; x<64; x++) {
+            for (int z=0; z<64; z++) {
+                blocks.add(new GrassBlock(x, 0, z));
             }
         }
     }
 
     public void render() {
-        for (int x = 0; x < 16; x++) {
-            for (int z = 0; z < 16; z++) {
-                blocks[x][z].render();
-            }
+        for (Block b : blocks) {
+            b.render();
         }
+    }
+
+    public void addBlock(int x, int y, int z, Block block) {
+        blocks.add(block);
     }
 }
