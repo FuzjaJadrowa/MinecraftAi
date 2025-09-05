@@ -3,6 +3,9 @@ plugins {
     application
 }
 
+group = "com.minecraftai"
+version = "1.0"
+
 repositories {
     mavenCentral()
 }
@@ -20,11 +23,20 @@ dependencies {
     runtimeOnly("org.lwjgl:lwjgl:$lwjglVersion:natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-opengl:$lwjglVersion:natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-glfw:$lwjglVersion:natives-windows")
-
 }
 
 application {
     mainClass.set("com.minecraftai.Main")
+}
+
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "com.minecraftai.Main"
+    }
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
 }
 
 java {
