@@ -24,11 +24,37 @@ public class CopperGolem {
 
         for (ModelLoader.Cube c : model.cubes) {
             glBegin(GL_QUADS);
-            // front
-            glTexCoord2f(c.u0, c.v0); glVertex3f(c.x, c.y, c.z + c.depth);
-            glTexCoord2f(c.u1, c.v0); glVertex3f(c.x + c.width, c.y, c.z + c.depth);
-            glTexCoord2f(c.u1, c.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z + c.depth);
-            glTexCoord2f(c.u0, c.v1); glVertex3f(c.x, c.y + c.height, c.z + c.depth);
+
+            glTexCoord2f(c.north.u0, c.north.v0); glVertex3f(c.x, c.y, c.z + c.depth);
+            glTexCoord2f(c.north.u1, c.north.v0); glVertex3f(c.x + c.width, c.y, c.z + c.depth);
+            glTexCoord2f(c.north.u1, c.north.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z + c.depth);
+            glTexCoord2f(c.north.u0, c.north.v1); glVertex3f(c.x, c.y + c.height, c.z + c.depth);
+
+            glTexCoord2f(c.south.u0, c.south.v0); glVertex3f(c.x + c.width, c.y, c.z);
+            glTexCoord2f(c.south.u1, c.south.v0); glVertex3f(c.x, c.y, c.z);
+            glTexCoord2f(c.south.u1, c.south.v1); glVertex3f(c.x, c.y + c.height, c.z);
+            glTexCoord2f(c.south.u0, c.south.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z);
+
+            glTexCoord2f(c.east.u0, c.east.v0); glVertex3f(c.x + c.width, c.y, c.z + c.depth);
+            glTexCoord2f(c.east.u1, c.east.v0); glVertex3f(c.x + c.width, c.y, c.z);
+            glTexCoord2f(c.east.u1, c.east.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z);
+            glTexCoord2f(c.east.u0, c.east.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z + c.depth);
+
+            glTexCoord2f(c.west.u0, c.west.v0); glVertex3f(c.x, c.y, c.z);
+            glTexCoord2f(c.west.u1, c.west.v0); glVertex3f(c.x, c.y, c.z + c.depth);
+            glTexCoord2f(c.west.u1, c.west.v1); glVertex3f(c.x, c.y + c.height, c.z + c.depth);
+            glTexCoord2f(c.west.u0, c.west.v1); glVertex3f(c.x, c.y + c.height, c.z);
+
+            glTexCoord2f(c.up.u0, c.up.v0); glVertex3f(c.x, c.y + c.height, c.z + c.depth);
+            glTexCoord2f(c.up.u1, c.up.v0); glVertex3f(c.x + c.width, c.y + c.height, c.z + c.depth);
+            glTexCoord2f(c.up.u1, c.up.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z);
+            glTexCoord2f(c.up.u0, c.up.v1); glVertex3f(c.x, c.y + c.height, c.z);
+
+            glTexCoord2f(c.down.u0, c.down.v0); glVertex3f(c.x, c.y, c.z);
+            glTexCoord2f(c.down.u1, c.down.v0); glVertex3f(c.x + c.width, c.y, c.z);
+            glTexCoord2f(c.down.u1, c.down.v1); glVertex3f(c.x + c.width, c.y, c.z + c.depth);
+            glTexCoord2f(c.down.u0, c.down.v1); glVertex3f(c.x, c.y, c.z + c.depth);
+
             glEnd();
         }
 
@@ -39,8 +65,4 @@ public class CopperGolem {
     public float getX() { return x; }
     public float getY() { return y; }
     public float getZ() { return z; }
-
-    public void setPosition(float x, float y, float z) {
-        this.x = x; this.y = y; this.z = z;
-    }
 }

@@ -6,7 +6,8 @@ import com.google.gson.JsonObject;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.*;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,10 @@ public class ModelLoader {
     public static class Cube {
         public float x, y, z;
         public float width, height, depth;
+        public Face north, south, east, west, up, down;
+    }
+
+    public static class Face {
         public float u0, v0, u1, v1;
     }
 
@@ -32,6 +37,13 @@ public class ModelLoader {
             InputStream jsonStream = ModelLoader.class.getClassLoader().getResourceAsStream(jsonPath);
             if (jsonStream == null) throw new RuntimeException("Nie znaleziono pliku: " + jsonPath);
             JsonObject root = new Gson().fromJson(new InputStreamReader(jsonStream), JsonObject.class);
+
+            InputStream texStream = ModelLoader.class.getClassLoader().getResourceAsStream(texturePath);
+            if (texStream == null) throw new RuntimeException("Nie znaleziono tekstury: " + texturePath);
+            BufferedImage image = ImageIO.read(texStream);
+            model.textureId = loadTexture(image);
+            int texWidth = image.getWidth();
+            int texHeight = image.getHeight();
 
             JsonArray elements = root.getAsJsonArray("elements");
             for (int i = 0; i < elements.size(); i++) {
@@ -48,22 +60,31 @@ public class ModelLoader {
                 c.height = to.get(1).getAsFloat() - c.y;
                 c.depth = to.get(2).getAsFloat() - c.z;
 
-                c.u0 = 0f;
-                c.v0 = 0f;
-                c.u1 = 1f;
-                c.v1 = 1f;
+                JsonObject faces = e.getAsJsonObject("faces");
+                c.north = parseFace(faces.getAsJsonObject("north"), texWidth, texHeight);
+                c.south = parseFace(faces.getAsJsonObject("south"), texWidth, texHeight);
+                c.east  = parseFace(faces.getAsJsonObject("east"), texWidth, texHeight);
+                c.west  = parseFace(faces.getAsJsonObject("west"), texWidth, texHeight);
+                c.up    = parseFace(faces.getAsJsonObject("up"), texWidth, texHeight);
+                c.down  = parseFace(faces.getAsJsonObject("down"), texWidth, texHeight);
+
                 model.cubes.add(c);
             }
-
-            InputStream texStream = ModelLoader.class.getClassLoader().getResourceAsStream(texturePath);
-            if (texStream == null) throw new RuntimeException("Nie znaleziono tekstury: " + texturePath);
-            BufferedImage image = ImageIO.read(texStream);
-            model.textureId = loadTexture(image);
 
         } catch (Exception e) {
             e.printStackTrace();
         }
         return model;
+    }
+
+    private static Face parseFace(JsonObject faceObj, int texWidth, int texHeight) {
+        Face f = new Face();
+        JsonArray uv = faceObj.getAsJsonArray("uv");
+        f.u0 = uv.get(0).getAsFloat() / texWidth;
+        f.v0 = uv.get(1).getAsFloat() / texHeight;
+        f.u1 = uv.get(2).getAsFloat() / texWidth;
+        f.v1 = uv.get(3).getAsFloat() / texHeight;
+        return f;
     }
 
     private static int loadTexture(BufferedImage image) {

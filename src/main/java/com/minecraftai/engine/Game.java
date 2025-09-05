@@ -3,10 +3,17 @@ package com.minecraftai.engine;
 import com.minecraftai.blocks.Cobblestone;
 import com.minecraftai.entity.CopperGolem;
 import org.lwjgl.glfw.GLFWErrorCallback;
+import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.opengl.GL;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.nio.ByteBuffer;
+
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.system.MemoryUtil.NULL;
+import static org.lwjgl.system.MemoryUtil.*;
 
 public class Game {
 
@@ -116,5 +123,37 @@ public class Game {
         float[] m = {s[0], u[0], -f[0],0, s[1], u[1], -f[1],0, s[2], u[2], -f[2],0, 0,0,0,1};
         glLoadMatrixf(m);
         glTranslatef(-eyeX, -eyeY, -eyeZ);
+    }
+
+    private void setWindowIcon(long window) {
+        try {
+            BufferedImage image = ImageIO.read(new File("icon.png"));
+            int width = image.getWidth();
+            int height = image.getHeight();
+            int[] pixelsRaw = new int[width * height];
+            image.getRGB(0, 0, width, height, pixelsRaw, 0, width);
+
+            ByteBuffer pixels = ByteBuffer.allocateDirect(width * height * 4);
+            for (int y = 0; y < height; y++) {
+                for (int x = 0; x < width; x++) {
+                    int pixel = pixelsRaw[y * width + x];
+                    pixels.put((byte) ((pixel >> 16) & 0xFF));
+                    pixels.put((byte) ((pixel >> 8) & 0xFF));
+                    pixels.put((byte) (pixel & 0xFF));
+                    pixels.put((byte) ((pixel >> 24) & 0xFF));
+                }
+            }
+            pixels.flip();
+
+            GLFWImage.Buffer icon = GLFWImage.malloc(1);
+            icon.width(width);
+            icon.height(height);
+            icon.pixels(pixels);
+
+            icon.free();
+            memFree(pixels);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
