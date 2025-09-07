@@ -1,68 +1,151 @@
 package com.minecraftai.entity;
 
-import com.minecraftai.engine.ModelLoader;
+import com.google.gson.*;
+
+import java.io.InputStream;
+import java.util.*;
 
 import static org.lwjgl.opengl.GL11.*;
 
 public class CopperGolem {
-    private float x, y, z;
-    private ModelLoader.Model model;
 
-    public CopperGolem(float x, float y, float z, ModelLoader.Model model) {
+    private static class Face {
+        float[] uv;
+        String texture;
+    }
+
+    private static class Element {
+        String name;
+        float[] from;
+        float[] to;
+        Map<String, Face> faces;
+    }
+
+    private List<Element> elements = new ArrayList<>();
+    private float x, y, z;
+
+    public CopperGolem(float x, float y, float z) {
         this.x = x;
         this.y = y;
         this.z = z;
-        this.model = model;
+        loadModel("assets/models/copper_golem.json");
+    }
+
+    private void loadModel(String path) {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream(path)) {
+            if (in == null) throw new RuntimeException("Model not found: " + path);
+            JsonObject root = JsonParser.parseReader(new java.io.InputStreamReader(in)).getAsJsonObject();
+            JsonArray arr = root.getAsJsonArray("elements");
+
+            for (JsonElement e : arr) {
+                JsonObject obj = e.getAsJsonObject();
+                Element el = new Element();
+                el.name = obj.get("name").getAsString();
+                el.from = toFloatArray(obj.getAsJsonArray("from"));
+                el.to = toFloatArray(obj.getAsJsonArray("to"));
+                el.faces = new HashMap<>();
+
+                JsonObject faces = obj.getAsJsonObject("faces");
+                for (String dir : faces.keySet()) {
+                    JsonObject f = faces.getAsJsonObject(dir);
+                    Face face = new Face();
+                    face.uv = toFloatArray(f.getAsJsonArray("uv"));
+                    face.texture = f.get("texture").getAsString();
+                    el.faces.put(dir, face);
+                }
+                elements.add(el);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private float[] toFloatArray(JsonArray arr) {
+        float[] out = new float[arr.size()];
+        for (int i = 0; i < arr.size(); i++) {
+            out[i] = arr.get(i).getAsFloat();
+        }
+        return out;
     }
 
     public void render() {
         glPushMatrix();
         glTranslatef(x, y, z);
-        glScalef(0.0625f, 0.0625f, 0.0625f);
-        glBindTexture(GL_TEXTURE_2D, model.textureId);
-        glEnable(GL_TEXTURE_2D);
 
-        for (ModelLoader.Cube c : model.cubes) {
-            glBegin(GL_QUADS);
-
-            glTexCoord2f(c.north.u0, c.north.v0); glVertex3f(c.x, c.y, c.z + c.depth);
-            glTexCoord2f(c.north.u1, c.north.v0); glVertex3f(c.x + c.width, c.y, c.z + c.depth);
-            glTexCoord2f(c.north.u1, c.north.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z + c.depth);
-            glTexCoord2f(c.north.u0, c.north.v1); glVertex3f(c.x, c.y + c.height, c.z + c.depth);
-
-            glTexCoord2f(c.south.u0, c.south.v0); glVertex3f(c.x + c.width, c.y, c.z);
-            glTexCoord2f(c.south.u1, c.south.v0); glVertex3f(c.x, c.y, c.z);
-            glTexCoord2f(c.south.u1, c.south.v1); glVertex3f(c.x, c.y + c.height, c.z);
-            glTexCoord2f(c.south.u0, c.south.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z);
-
-            glTexCoord2f(c.east.u0, c.east.v0); glVertex3f(c.x + c.width, c.y, c.z + c.depth);
-            glTexCoord2f(c.east.u1, c.east.v0); glVertex3f(c.x + c.width, c.y, c.z);
-            glTexCoord2f(c.east.u1, c.east.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z);
-            glTexCoord2f(c.east.u0, c.east.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z + c.depth);
-
-            glTexCoord2f(c.west.u0, c.west.v0); glVertex3f(c.x, c.y, c.z);
-            glTexCoord2f(c.west.u1, c.west.v0); glVertex3f(c.x, c.y, c.z + c.depth);
-            glTexCoord2f(c.west.u1, c.west.v1); glVertex3f(c.x, c.y + c.height, c.z + c.depth);
-            glTexCoord2f(c.west.u0, c.west.v1); glVertex3f(c.x, c.y + c.height, c.z);
-
-            glTexCoord2f(c.up.u0, c.up.v0); glVertex3f(c.x, c.y + c.height, c.z + c.depth);
-            glTexCoord2f(c.up.u1, c.up.v0); glVertex3f(c.x + c.width, c.y + c.height, c.z + c.depth);
-            glTexCoord2f(c.up.u1, c.up.v1); glVertex3f(c.x + c.width, c.y + c.height, c.z);
-            glTexCoord2f(c.up.u0, c.up.v1); glVertex3f(c.x, c.y + c.height, c.z);
-
-            glTexCoord2f(c.down.u0, c.down.v0); glVertex3f(c.x, c.y, c.z);
-            glTexCoord2f(c.down.u1, c.down.v0); glVertex3f(c.x + c.width, c.y, c.z);
-            glTexCoord2f(c.down.u1, c.down.v1); glVertex3f(c.x + c.width, c.y, c.z + c.depth);
-            glTexCoord2f(c.down.u0, c.down.v1); glVertex3f(c.x, c.y, c.z + c.depth);
-
-            glEnd();
+        for (Element el : elements) {
+            switch (el.name) {
+                case "head":
+                    glColor3f(1f, 0f, 0f);
+                    break;
+                case "body":
+                    glColor3f(0.8f, 0.4f, 0.1f);
+                    break;
+                case "left_arm":
+                case "right_arm":
+                case "left_leg":
+                case "right_leg":
+                    glColor3f(0f, 0f, 0f);
+                    break;
+            }
+            drawElement(el);
         }
 
-        glDisable(GL_TEXTURE_2D);
+        glColor3f(1f, 1f, 1f);
         glPopMatrix();
     }
 
-    public float getX() { return x; }
-    public float getY() { return y; }
-    public float getZ() { return z; }
+    private void drawElement(Element el) {
+        float x1 = el.from[0] / 16f;
+        float y1 = el.from[1] / 16f;
+        float z1 = el.from[2] / 16f;
+        float x2 = el.to[0] / 16f;
+        float y2 = el.to[1] / 16f;
+        float z2 = el.to[2] / 16f;
+
+        glBegin(GL_QUADS);
+
+        if (el.faces.containsKey("north")) {
+            glVertex3f(x1, y1, z1);
+            glVertex3f(x2, y1, z1);
+            glVertex3f(x2, y2, z1);
+            glVertex3f(x1, y2, z1);
+        }
+
+        if (el.faces.containsKey("east")) {
+            glVertex3f(x2, y1, z1);
+            glVertex3f(x2, y1, z2);
+            glVertex3f(x2, y2, z2);
+            glVertex3f(x2, y2, z1);
+        }
+
+        if (el.faces.containsKey("south")) {
+            glVertex3f(x2, y1, z2);
+            glVertex3f(x1, y1, z2);
+            glVertex3f(x1, y2, z2);
+            glVertex3f(x2, y2, z2);
+        }
+
+        if (el.faces.containsKey("west")) {
+            glVertex3f(x1, y1, z2);
+            glVertex3f(x1, y1, z1);
+            glVertex3f(x1, y2, z1);
+            glVertex3f(x1, y2, z2);
+        }
+
+        if (el.faces.containsKey("up")) {
+            glVertex3f(x1, y2, z1);
+            glVertex3f(x2, y2, z1);
+            glVertex3f(x2, y2, z2);
+            glVertex3f(x1, y2, z2);
+        }
+
+        if (el.faces.containsKey("down")) {
+            glVertex3f(x1, y1, z2);
+            glVertex3f(x2, y1, z2);
+            glVertex3f(x2, y1, z1);
+            glVertex3f(x1, y1, z1);
+        }
+
+        glEnd();
+    }
 }

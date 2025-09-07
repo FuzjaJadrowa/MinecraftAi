@@ -14,8 +14,8 @@ public class Log extends Block {
         super(x, y, z);
 
         if (logtopTexture == 0) {
-            logtopTexture = TextureLoader.loadTexture("/textures/block/log_top.png");
-            logTexture = TextureLoader.loadTexture("/textures/block/log.png");
+            logtopTexture = TextureLoader.loadTexture("/assets/textures/block/log_top.png");
+            logTexture = TextureLoader.loadTexture("/assets/textures/block/log.png");
         }
     }
 

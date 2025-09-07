@@ -12,7 +12,7 @@ public class Cobblestone extends Block {
     public Cobblestone(int x, int y, int z) {
         super(x, y, z);
         if (texture == 0) {
-            texture = TextureLoader.loadTexture("/textures/block/cobblestone.png");
+            texture = TextureLoader.loadTexture("/assets/textures/block/cobblestone.png");
         }
     }
 

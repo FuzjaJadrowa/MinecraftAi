@@ -14,8 +14,8 @@ public class GrassBlock extends Block {
         super(x, y, z);
 
         if (grassTexture == 0) {
-            grassTexture = TextureLoader.loadTexture("/textures/block/grass.png");
-            dirtTexture = TextureLoader.loadTexture("/textures/block/dirt.png");
+            grassTexture = TextureLoader.loadTexture("/assets/textures/block/grass.png");
+            dirtTexture = TextureLoader.loadTexture("/assets/textures/block/dirt.png");
         }
     }
 

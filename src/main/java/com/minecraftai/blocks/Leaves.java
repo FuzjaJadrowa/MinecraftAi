@@ -12,7 +12,7 @@ public class Leaves extends Block {
     public Leaves(int x, int y, int z) {
         super(x, y, z);
         if (texture == 0) {
-            texture = TextureLoader.loadTexture("/textures/block/leaves.png");
+            texture = TextureLoader.loadTexture("/assets/textures/block/leaves.png");
         }
     }
 

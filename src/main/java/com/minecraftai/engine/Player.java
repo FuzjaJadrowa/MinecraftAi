@@ -1,5 +1,7 @@
 package com.minecraftai.engine;
 
+import com.minecraftai.blocks.Cobblestone;
+
 import static org.lwjgl.glfw.GLFW.*;
 
 public class Player {
@@ -13,6 +15,8 @@ public class Player {
     private final float eyeHeight = 1.7f;
     private long lastBlockBreakTime = 0;
     private final long blockBreakCooldown = 200_000_000L;
+    private long lastBlockPlaceTime = 0;
+    private final long blockPlaceCooldown = 200_000_000L;
 
     private World world;
 
@@ -160,6 +164,57 @@ public class Player {
         if (target != null) {
             world.removeBlock(target.getX(), target.getY(), target.getZ());
             lastBlockBreakTime = now;
+        }
+    }
+
+    public void tryPlaceBlock(World world) {
+        long now = System.nanoTime();
+        if (now - lastBlockPlaceTime < blockPlaceCooldown) {
+            return;
+        }
+
+        float maxDistance = 4f;
+
+        float radYaw = (float)Math.toRadians(yaw);
+        float radPitch = (float)Math.toRadians(pitch);
+
+        float dirX = (float)(Math.sin(radYaw) * Math.cos(radPitch));
+        float dirY = (float)(Math.sin(radPitch));
+        float dirZ = (float)(-Math.cos(radYaw) * Math.cos(radPitch));
+
+        float eyeX = x;
+        float eyeY = y + eyeHeight;
+        float eyeZ = z;
+
+        float step = 0.1f;
+        for (float t = 0; t <= maxDistance; t += step) {
+            int placeX = (int)Math.floor(eyeX + dirX * t);
+            int placeY = (int)Math.floor(eyeY + dirY * t);
+            int placeZ = (int)Math.floor(eyeZ + dirZ * t);
+
+            if (placeX == (int)x && placeY == (int)y && placeZ == (int)z) continue;
+
+            boolean occupied = false;
+            for (Block b : world.getBlocks()) {
+                if (b.getX() == placeX && b.getY() == placeY && b.getZ() == placeZ) {
+                    occupied = true;
+                    break;
+                }
+            }
+            if (occupied) continue;
+
+            boolean adjacent = false;
+            for (Block b : world.getBlocks()) {
+                if (Math.abs(b.getX() - placeX) + Math.abs(b.getY() - placeY) + Math.abs(b.getZ() - placeZ) == 1) {
+                    adjacent = true;
+                    break;
+                }
+            }
+            if (adjacent) {
+                world.addBlock(placeX, placeY, placeZ, new Cobblestone(placeX, placeY, placeZ));
+                lastBlockPlaceTime = now;
+                return;
+            }
         }
     }
 

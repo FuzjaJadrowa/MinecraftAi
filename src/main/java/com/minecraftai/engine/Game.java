@@ -1,6 +1,5 @@
 package com.minecraftai.engine;
 
-import com.minecraftai.blocks.Cobblestone;
 import com.minecraftai.entity.CopperGolem;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWImage;
@@ -9,6 +8,7 @@ import org.lwjgl.opengl.GL;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.File;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 import static org.lwjgl.glfw.GLFW.*;
@@ -21,7 +21,6 @@ public class Game {
     private Player player;
     private World world;
     private CopperGolem copperGolem;
-    private ModelLoader.Model copperModel;
 
     public void run() {
         init();
@@ -35,6 +34,7 @@ public class Game {
         if (!glfwInit()) throw new IllegalStateException("GLFW init failed");
         window = glfwCreateWindow(1280, 720, "Minecraft AI", NULL, NULL);
         if (window == NULL) throw new RuntimeException("Window creation failed");
+        setWindowIcon(window, "assets/icon.png");
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         final double[] lastX = {640};
         final double[] lastY = {360};
@@ -63,7 +63,6 @@ public class Game {
         glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
         world = new World();
         player = new Player(world);
-        copperModel = ModelLoader.loadModel("models/copper_golem.json", "textures/entity/copper_golem.png");
     }
 
     private void loop() {
@@ -75,29 +74,29 @@ public class Game {
             int[] height = new int[1];
             glfwGetFramebufferSize(window, width, height);
             float aspect = (float) width[0] / height[0];
+            glViewport(0, 0, width[0], height[0]);
             perspective(70.0f, aspect, 0.1f, 100.0f);
             float[] cam = player.getCameraLookAt();
             glMatrixMode(GL_MODELVIEW);
             glLoadIdentity();
             lookAt(cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], 0, 1, 0);
             if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-                int placeX = (int)(player.getX() + Math.sin(Math.toRadians(player.getYaw())));
-                int placeY = (int) player.getY();
-                int placeZ = (int)(player.getZ() - Math.cos(Math.toRadians(player.getYaw())));
-                world.addBlock(placeX, placeY, placeZ, new Cobblestone(placeX, placeY, placeZ));
+                player.tryPlaceBlock(world);
             }
             if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
                 player.tryBreakBlock(world);
             }
             if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && copperGolem == null) {
-                float spawnX = player.getX() + 1;
+                float spawnX = player.getX() + 2;
                 float spawnY = player.getY();
-                float spawnZ = player.getZ();
-                copperGolem = new CopperGolem(spawnX, spawnY, spawnZ, copperModel);
+                float spawnZ = player.getZ() + 2;
+                copperGolem = new CopperGolem(spawnX, spawnY, spawnZ);
             }
             player.update(window);
             world.render();
-            if (copperGolem != null) copperGolem.render();
+            if (copperGolem != null) {
+                copperGolem.render();
+            }
             glfwSwapBuffers(window);
             glfwPollEvents();
         }
@@ -125,9 +124,15 @@ public class Game {
         glTranslatef(-eyeX, -eyeY, -eyeZ);
     }
 
-    private void setWindowIcon(long window) {
+    public static void setWindowIcon(long window, String resourcePath) {
         try {
-            BufferedImage image = ImageIO.read(new File("icon.png"));
+            InputStream stream = Game.class.getClassLoader().getResourceAsStream(resourcePath);
+            if (stream == null) {
+                System.err.println("Nie znaleziono zasobu: " + resourcePath);
+                return;
+            }
+
+            BufferedImage image = ImageIO.read(stream);
             int width = image.getWidth();
             int height = image.getHeight();
             int[] pixelsRaw = new int[width * height];
@@ -149,9 +154,9 @@ public class Game {
             icon.width(width);
             icon.height(height);
             icon.pixels(pixels);
-
+            glfwSetWindowIcon(window, icon);
             icon.free();
-            memFree(pixels);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
