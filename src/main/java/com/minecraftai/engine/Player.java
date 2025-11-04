@@ -1,5 +1,6 @@
 package com.minecraftai.engine;
 
+import com.minecraftai.blocks.Cobblestone;
 import com.minecraftai.blocks.Leaves;
 import com.minecraftai.entity.CopperGolem;
 
@@ -100,12 +101,13 @@ public class Player {
         velocityY -= gravity;
         float nextY = y + velocityY;
 
-        if (velocityY > 0 && collides(x, nextY + 0.1f, z)) {
+        if (velocityY > 0 && collides(x, nextY, z)) {
             velocityY = 0;
         }
-        else if (velocityY < 0 && collides(x, nextY - 0.05f, z)) {
+
+        else if (velocityY < 0 && collides(x, nextY, z)) {
             velocityY = 0;
-            y = (float) Math.floor(nextY) + 1.0f - 0.001f;
+            y = (float) Math.floor(nextY) + 1.0f;
         } else {
             y = nextY;
         }
@@ -177,7 +179,7 @@ public class Player {
         Block target = getTargetBlock(world, 3f);
 
         if (target != null) {
-            world.removeBlock(target.getX(), target.getY(), target.getZ()); // Używa setBlockAt(null)
+            world.removeBlock(target.getX(), target.getY(), target.getZ());
             lastBlockBreakTime = now;
         }
     }
@@ -217,7 +219,7 @@ public class Player {
                 Block b = world.getBlockAt(currentBlockX, currentBlockY, currentBlockZ);
 
                 if (b != null) {
-                    Block newBlock = new Leaves(prevX, prevY, prevZ);
+                    Block newBlock = new Cobblestone(prevX, prevY, prevZ);
 
                     if (newBlock.collidesWithPlayer(this.x, this.y, this.z)) {
                         return;

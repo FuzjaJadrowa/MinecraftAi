@@ -2,45 +2,51 @@ package com.minecraftai.generator;
 
 import com.minecraftai.blocks.Leaves;
 import com.minecraftai.blocks.Log;
-import com.minecraftai.engine.World;
+import com.minecraftai.engine.Block;
+import com.minecraftai.engine.Chunk;
 
 import java.util.Random;
 
 public class Tree {
+   private static final Random random = new Random();
 
-    private World world;
-    private Random random = new Random();
-
-    public Tree(World world) {
-        this.world = world;
-    }
-
-    public void generateRandomTrees(int count) {
-        for (int i = 0; i < count; i++) {
-            int x = random.nextInt(64);
-            int z = random.nextInt(64);
-            int y = world.getHeightAt(x, z);
-
-            if (y < 0) continue;
-
-            generateTree(x, y, z);
+    public static void generateTree(Block[][][] blocks, int localX, int localY, int localZ, int globalX, int globalZ) {
+        int treeHeight = 4 + random.nextInt(3); // Wysokość 4-6
+        if (localY + treeHeight + 1 >= Chunk.CHUNK_SIZE_Y) {
+            return;
         }
-    }
-
-    private void generateTree(int x, int y, int z) {
-        int treeHeight = 3 + random.nextInt(3);
 
         for (int i = 0; i < treeHeight; i++) {
-            world.addBlock(x, y + i, z, new Log(x, y + i, z));
+            int currentY = localY + i;
+            blocks[localX][currentY][localZ] = new Log(globalX, currentY, globalZ);
         }
 
-        int leafStart = y + treeHeight - 2;
-        int leafEnd = y + treeHeight;
-        for (int lx = -1; lx <= 1; lx++) {
-            for (int ly = 0; ly <= 2; ly++) {
-                for (int lz = -1; lz <= 1; lz++) {
-                    if (Math.abs(lx) == 1 && Math.abs(lz) == 1 && ly == 2) continue;
-                    world.addBlock(x + lx, leafStart + ly, z + lz, new Leaves(x + lx, leafStart + ly, z + lz));
+        int leafStartY = localY + treeHeight - 2;
+        int leafTopY = localY + treeHeight + 1;
+
+        for (int y = leafStartY; y < leafTopY; y++) {
+            int radius = (y == leafTopY - 1) ? 1 : 2;
+
+            for (int x = -radius; x <= radius; x++) {
+                for (int z = -radius; z <= radius; z++) {
+
+                    if (Math.abs(x) == radius && Math.abs(z) == radius && radius > 1) {
+                        continue;
+                    }
+
+                    int currentLocalX = localX + x;
+                    int currentLocalZ = localZ + z;
+
+                    if (currentLocalX < 0 || currentLocalX >= Chunk.CHUNK_SIZE_X ||
+                            currentLocalZ < 0 || currentLocalZ >= Chunk.CHUNK_SIZE_Z) {
+                        continue;
+                    }
+
+                    if (blocks[currentLocalX][y][currentLocalZ] == null) {
+                        int currentGlobalX = globalX + x;
+                        int currentGlobalZ = globalZ + z;
+                        blocks[currentLocalX][y][currentLocalZ] = new Leaves(currentGlobalX, y, currentGlobalZ);
+                    }
                 }
             }
         }

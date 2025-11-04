@@ -12,12 +12,10 @@ public class World {
     public static final double TERRAIN_SCALE = 0.015;
     public static final double CAVE_SCALE = 0.04;
 
-    public static final int RENDER_DISTANCE = 1;
+    public static final int RENDER_DISTANCE = 2;
 
     public World() {
         this.noiseGen = new SimplexNoise(new Random().nextInt(10000));
-        // Tree treeGen = new Tree(this);
-        // treeGen.generateRandomTrees(40);
     }
 
     public Chunk getOrLoadChunk(int chunkX, int chunkZ) {
@@ -40,34 +38,10 @@ public class World {
         }
     }
 
-    public void render() {
-        System.err.println("Wywołano starą metodę render()! Popraw Game.java!");
-    }
-
     public Block getBlockAt(int globalX, int globalY, int globalZ) {
         if (globalY < 0 || globalY >= Chunk.CHUNK_SIZE_Y) {
             return null;
         }
-
-        int chunkX = (int) Math.floor((double) globalX / Chunk.CHUNK_SIZE_X);
-        int chunkZ = (int) Math.floor((double) globalZ / Chunk.CHUNK_SIZE_Z);
-
-        Chunk chunk = chunks.get(chunkX + "_" + chunkZ);
-        if (chunk == null) {
-            return null;
-        }
-
-        int localX = globalX % Chunk.CHUNK_SIZE_X;
-        if (localX < 0) localX += Chunk.CHUNK_SIZE_X;
-
-        int localZ = globalZ % Chunk.CHUNK_SIZE_Z;
-        if (localZ < 0) localZ += Chunk.CHUNK_SIZE_Z;
-
-        return chunk.getBlock(localX, globalY, globalZ);
-    }
-
-    public void setBlockAt(int globalX, int globalY, int globalZ, Block block) {
-        if (globalY < 0 || globalY >= Chunk.CHUNK_SIZE_Y) return;
 
         int chunkX = (int) Math.floor((double) globalX / Chunk.CHUNK_SIZE_X);
         int chunkZ = (int) Math.floor((double) globalZ / Chunk.CHUNK_SIZE_Z);
@@ -80,7 +54,42 @@ public class World {
         int localZ = globalZ % Chunk.CHUNK_SIZE_Z;
         if (localZ < 0) localZ += Chunk.CHUNK_SIZE_Z;
 
-        chunk.setBlock(localX, globalY, globalZ, block);
+        return chunk.getBlock(localX, globalY, localZ);
+    }
+
+    public void setBlockAt(int globalX, int globalY, int globalZ, Block block) {
+        if (globalY < 0 || globalY >= Chunk.CHUNK_SIZE_Y) return;
+
+        int chunkX = (int) Math.floor((double) globalX / Chunk.CHUNK_SIZE_X);
+        int chunkZ = (int) Math.floor((double) globalZ / Chunk.CHUNK_SIZE_Z);
+
+        Chunk chunk = getOrLoadChunk(chunkX, chunkZ);
+        if (chunk == null) return;
+
+        int localX = globalX % Chunk.CHUNK_SIZE_X;
+        if (localX < 0) localX += Chunk.CHUNK_SIZE_X;
+
+        int localZ = globalZ % Chunk.CHUNK_SIZE_Z;
+        if (localZ < 0) localZ += Chunk.CHUNK_SIZE_Z;
+
+        chunk.setBlock(localX, globalY, globalZ, block, true);
+
+        Chunk neighbor;
+        if (localX == 0) {
+            neighbor = chunks.get((chunkX - 1) + "_" + chunkZ);
+            if (neighbor != null) neighbor.markDirty();
+        } else if (localX == Chunk.CHUNK_SIZE_X - 1) {
+            neighbor = chunks.get((chunkX + 1) + "_" + chunkZ);
+            if (neighbor != null) neighbor.markDirty();
+        }
+
+        if (localZ == 0) {
+            neighbor = chunks.get(chunkX + "_" + (chunkZ - 1));
+            if (neighbor != null) neighbor.markDirty();
+        } else if (localZ == Chunk.CHUNK_SIZE_Z - 1) {
+            neighbor = chunks.get(chunkX + "_" + (chunkZ + 1));
+            if (neighbor != null) neighbor.markDirty();
+        }
     }
 
     public void addBlock(int x, int y, int z, Block block) {
@@ -89,26 +98,6 @@ public class World {
 
     public void removeBlock(int x, int y, int z) {
         setBlockAt(x, y, z, null);
-    }
-
-    public int getHeightAt(int x, int z) {
-        int chunkX = (int) Math.floor((double) x / Chunk.CHUNK_SIZE_X);
-        int chunkZ = (int) Math.floor((double) z / Chunk.CHUNK_SIZE_Z);
-        Chunk chunk = chunks.get(chunkX + "_" + chunkZ);
-        if (chunk == null) return -1; // Nie wiemy, nie jest załadowany
-
-        int localX = x % Chunk.CHUNK_SIZE_X;
-        if (localX < 0) localX += Chunk.CHUNK_SIZE_X;
-        int localZ = z % Chunk.CHUNK_SIZE_Z;
-        if (localZ < 0) localZ += Chunk.CHUNK_SIZE_Z;
-
-        for (int y = Chunk.CHUNK_SIZE_Y - 1; y > 0; y--) {
-            Block b = chunk.getBlock(localX, y, localZ);
-            if (b != null && b.isSolid()) {
-                return y;
-            }
-        }
-        return -1;
     }
 
     public static class SimplexNoise {

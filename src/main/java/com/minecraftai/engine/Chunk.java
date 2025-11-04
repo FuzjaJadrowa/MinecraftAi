@@ -1,16 +1,23 @@
 package com.minecraftai.engine;
 
-import com.minecraftai.blocks.*; // Importujemy wszystkie typy bloków
+import com.minecraftai.blocks.*;
+import com.minecraftai.generator.Tree;
+import java.util.Random;
 
 import static org.lwjgl.opengl.GL11.*;
 
 public class Chunk {
-    public static final int CHUNK_SIZE_X = 8;
-    public static final int CHUNK_SIZE_Y = 128;
-    public static final int CHUNK_SIZE_Z = 8;
+
+    public static final int CHUNK_SIZE_X = 16;
+    public static final int CHUNK_SIZE_Y = 256;
+    public static final int CHUNK_SIZE_Z = 16;
 
     private Block[][][] blocks = new Block[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
     private int worldX, worldZ;
+    private static final Random random = new Random();
+
+    private int displayListId = -1;
+    private boolean needsRebuild = true;
 
     public Chunk(int chunkX, int chunkZ, World world, World.SimplexNoise noiseGen) {
         this.worldX = chunkX;
@@ -19,24 +26,25 @@ public class Chunk {
         int startX = chunkX * CHUNK_SIZE_X;
         int startZ = chunkZ * CHUNK_SIZE_Z;
 
+        int[][] surfaceHeights = new int[CHUNK_SIZE_X][CHUNK_SIZE_Z];
+        boolean[][] isGrass = new boolean[CHUNK_SIZE_X][CHUNK_SIZE_Z];
+
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-
                 int globalX = startX + x;
                 int globalZ = startZ + z;
+
                 double terrainNoise = noiseGen.noise(globalX * World.TERRAIN_SCALE, globalZ * World.TERRAIN_SCALE);
-                int surfaceHeight;
-                if (terrainNoise < 0) {
-                    surfaceHeight = World.BASE_Y + (int) (terrainNoise * 5.0);
-                } else {
-                    surfaceHeight = World.BASE_Y + (int) (terrainNoise * 20.0);
-                }
+                int surfaceHeight = (terrainNoise < 0) ?
+                        (World.BASE_Y + (int) (terrainNoise * 5.0)) :
+                        (World.BASE_Y + (int) (terrainNoise * 20.0));
+
+                surfaceHeights[x][z] = surfaceHeight;
 
                 for (int y = 0; y < CHUNK_SIZE_Y; y++) {
                     if (y > surfaceHeight) {
-
                         if (y <= World.WATER_LEVEL && surfaceHeight < World.WATER_LEVEL - 1) {
-                            setBlock(x, y, z, new Water(globalX, y, globalZ));
+                            setBlock(x, y, z, new Water(globalX, y, globalZ), false);
                         } else {
                             blocks[x][y][z] = null;
                         }
@@ -53,18 +61,33 @@ public class Chunk {
 
                     if (y == surfaceHeight) {
                         if (y >= World.WATER_LEVEL) {
-                            setBlock(x, y, z, new GrassBlock(globalX, y, globalZ));
+                            setBlock(x, y, z, new GrassBlock(globalX, y, globalZ), false);
+                            isGrass[x][z] = true;
                         } else {
-                            setBlock(x, y, z, new Dirt(globalX, y, globalZ));
+                            setBlock(x, y, z, new Dirt(globalX, y, globalZ), false);
                         }
                     } else if (y > surfaceHeight - 4) {
-                        setBlock(x, y, z, new Dirt(globalX, y, globalZ));
+                        setBlock(x, y, z, new Dirt(globalX, y, globalZ), false);
                     } else {
-                        setBlock(x, y, z, new Stone(globalX, y, globalZ));
+                        setBlock(x, y, z, new Stone(globalX, y, globalZ), false);
                     }
                 }
             }
         }
+
+        for (int x = 0; x < CHUNK_SIZE_X; x++) {
+            for (int z = 0; z < CHUNK_SIZE_Z; z++) {
+                if (isGrass[x][z] && random.nextInt(100) == 0) {
+                    int globalX = startX + x;
+                    int globalZ = startZ + z;
+                    int y = surfaceHeights[x][z] + 1;
+
+                    Tree.generateTree(this.blocks, x, y, z, globalX, globalZ);
+                }
+            }
+        }
+
+        this.needsRebuild = true;
     }
 
     public Block getBlock(int x, int y, int z) {
@@ -74,17 +97,43 @@ public class Chunk {
         return blocks[x][y][z];
     }
 
-    public void setBlock(int x, int y, int z, Block block) {
+    public void setBlock(int x, int y, int z, Block block, boolean markDirty) {
         if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z) {
             return;
         }
         blocks[x][y][z] = block;
+        if (markDirty) {
+            this.needsRebuild = true;
+        }
+    }
+
+    public void markDirty() {
+        this.needsRebuild = true;
     }
 
     public void render(World world) {
-        glEnable(GL_TEXTURE_2D);
+        if (needsRebuild) {
+            rebuildMesh(world);
+            needsRebuild = false;
+        }
 
-        // TODO: Dalsza optymalizacja przez "Batch Rendering" (sortowanie tekstur)
+        if (displayListId > -1) {
+            glCallList(displayListId);
+        }
+    }
+
+    private void rebuildMesh(World world) {
+        if (displayListId > -1) {
+            glDeleteLists(displayListId, 1);
+        }
+
+        displayListId = glGenLists(1);
+        glNewList(displayListId, GL_COMPILE);
+
+        glEnable(GL_TEXTURE_2D);
+        glPushMatrix();
+
+        glTranslatef(worldX * CHUNK_SIZE_X, 0, worldZ * CHUNK_SIZE_Z);
 
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
             for (int y = 0; y < CHUNK_SIZE_Y; y++) {
@@ -93,7 +142,7 @@ public class Chunk {
                     if (currentBlock == null || currentBlock.isTransparent()) {
                         continue;
                     }
-                    renderBlockFaces(currentBlock, world);
+                    renderBlockFaces(currentBlock, x, y, z, world);
                 }
             }
         }
@@ -108,98 +157,97 @@ public class Chunk {
                     if (currentBlock == null || !currentBlock.isTransparent()) {
                         continue;
                     }
-                    renderBlockFaces(currentBlock, world);
+
+                    currentBlock.setTransparent(0.7f);
+                    renderBlockFaces(currentBlock, x, y, z, world);
+                    currentBlock.setOpaque();
                 }
             }
         }
+
         glDisable(GL_BLEND);
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
         glDisable(GL_TEXTURE_2D);
+        glPopMatrix();
+
+        glEndList();
     }
 
-    private void renderBlockFaces(Block currentBlock, World world) {
-        int globalX = currentBlock.getX();
-        int globalY = currentBlock.getY();
-        int globalZ = currentBlock.getZ();
+    private void renderBlockFaces(Block current, int x, int y, int z, World world) {
+        int globalX = worldX * CHUNK_SIZE_X + x;
+        int globalZ = worldZ * CHUNK_SIZE_Z + z;
+        float h = current.blockHeight;
 
-        glPushMatrix();
-        glTranslatef(globalX, globalY, globalZ);
-
-        float h = currentBlock.blockHeight;
-
-        Block neighborUp = world.getBlockAt(globalX, globalY + 1, globalZ);
-        if (shouldRenderFace(currentBlock, neighborUp)) {
-            glBindTexture(GL_TEXTURE_2D, currentBlock.getTextureID(Block.Face.TOP));
+        Block neighbor = (y + 1 >= CHUNK_SIZE_Y) ? null : blocks[x][y + 1][z];
+        if (shouldRenderFace(current, neighbor)) {
+            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.TOP));
             glBegin(GL_QUADS);
             glNormal3f(0, 1, 0);
-            glTexCoord2f(0, 0); glVertex3f(0, h, 0);
-            glTexCoord2f(1, 0); glVertex3f(1, h, 0);
-            glTexCoord2f(1, 1); glVertex3f(1, h, 1);
-            glTexCoord2f(0, 1); glVertex3f(0, h, 1);
+            glTexCoord2f(0, 0); glVertex3f(x, y + h, z);
+            glTexCoord2f(1, 0); glVertex3f(x + 1, y + h, z);
+            glTexCoord2f(1, 1); glVertex3f(x + 1, y + h, z + 1);
+            glTexCoord2f(0, 1); glVertex3f(x, y + h, z + 1);
             glEnd();
         }
 
-        Block neighborDown = world.getBlockAt(globalX, globalY - 1, globalZ);
-        if (shouldRenderFace(currentBlock, neighborDown)) {
-            glBindTexture(GL_TEXTURE_2D, currentBlock.getTextureID(Block.Face.BOTTOM));
+        neighbor = (y - 1 < 0) ? null : blocks[x][y - 1][z];
+        if (shouldRenderFace(current, neighbor)) {
+            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.BOTTOM));
             glBegin(GL_QUADS);
             glNormal3f(0, -1, 0);
-            glTexCoord2f(0, 0); glVertex3f(0, 0, 0);
-            glTexCoord2f(1, 0); glVertex3f(1, 0, 0);
-            glTexCoord2f(1, 1); glVertex3f(1, 0, 1);
-            glTexCoord2f(0, 1); glVertex3f(0, 0, 1);
+            glTexCoord2f(0, 0); glVertex3f(x, y, z);
+            glTexCoord2f(1, 0); glVertex3f(x + 1, y, z);
+            glTexCoord2f(1, 1); glVertex3f(x + 1, y, z + 1);
+            glTexCoord2f(0, 1); glVertex3f(x, y, z + 1);
             glEnd();
         }
 
-        Block neighborFront = world.getBlockAt(globalX, globalY, globalZ + 1);
-        if (shouldRenderFace(currentBlock, neighborFront)) {
-            glBindTexture(GL_TEXTURE_2D, currentBlock.getTextureID(Block.Face.NORTH));
-            glBegin(GL_QUADS);
-            glNormal3f(0, 0, 1);
-            glTexCoord2f(0, 0); glVertex3f(0, 0, 1);
-            glTexCoord2f(1, 0); glVertex3f(1, 0, 1);
-            glTexCoord2f(1, 1); glVertex3f(1, h, 1);
-            glTexCoord2f(0, 1); glVertex3f(0, h, 1);
-            glEnd();
-        }
-
-        Block neighborBack = world.getBlockAt(globalX, globalY, globalZ - 1);
-        if (shouldRenderFace(currentBlock, neighborBack)) {
-            glBindTexture(GL_TEXTURE_2D, currentBlock.getTextureID(Block.Face.SOUTH));
-            glBegin(GL_QUADS);
-            glNormal3f(0, 0, -1);
-            glTexCoord2f(0, 0); glVertex3f(0, 0, 0);
-            glTexCoord2f(1, 0); glVertex3f(1, 0, 0);
-            glTexCoord2f(1, 1); glVertex3f(1, h, 0);
-            glTexCoord2f(0, 1); glVertex3f(0, h, 0);
-            glEnd();
-        }
-
-        Block neighborLeft = world.getBlockAt(globalX - 1, globalY, globalZ);
-        if (shouldRenderFace(currentBlock, neighborLeft)) {
-            glBindTexture(GL_TEXTURE_2D, currentBlock.getTextureID(Block.Face.WEST));
-            glBegin(GL_QUADS);
-            glNormal3f(-1, 0, 0);
-            glTexCoord2f(0, 0); glVertex3f(0, 0, 0);
-            glTexCoord2f(1, 0); glVertex3f(0, 0, 1);
-            glTexCoord2f(1, 1); glVertex3f(0, h, 1);
-            glTexCoord2f(0, 1); glVertex3f(0, h, 0);
-            glEnd();
-        }
-
-        Block neighborRight = world.getBlockAt(globalX + 1, globalY, globalZ);
-        if (shouldRenderFace(currentBlock, neighborRight)) {
-            glBindTexture(GL_TEXTURE_2D, currentBlock.getTextureID(Block.Face.EAST));
+        neighbor = (x + 1 >= CHUNK_SIZE_X) ? world.getBlockAt(globalX + 1, y, globalZ) : blocks[x + 1][y][z];
+        if (shouldRenderFace(current, neighbor)) {
+            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.EAST));
             glBegin(GL_QUADS);
             glNormal3f(1, 0, 0);
-            glTexCoord2f(0, 0); glVertex3f(1, 0, 0);
-            glTexCoord2f(1, 0); glVertex3f(1, 0, 1);
-            glTexCoord2f(1, 1); glVertex3f(1, h, 1);
-            glTexCoord2f(0, 1); glVertex3f(1, h, 0);
+            glTexCoord2f(0, 0); glVertex3f(x + 1, y, z);
+            glTexCoord2f(1, 0); glVertex3f(x + 1, y, z + 1);
+            glTexCoord2f(1, 1); glVertex3f(x + 1, y + h, z + 1);
+            glTexCoord2f(0, 1); glVertex3f(x + 1, y + h, z);
             glEnd();
         }
 
-        glPopMatrix();
+        neighbor = (x - 1 < 0) ? world.getBlockAt(globalX - 1, y, globalZ) : blocks[x - 1][y][z];
+        if (shouldRenderFace(current, neighbor)) {
+            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.WEST));
+            glBegin(GL_QUADS);
+            glNormal3f(-1, 0, 0);
+            glTexCoord2f(0, 0); glVertex3f(x, y, z);
+            glTexCoord2f(1, 0); glVertex3f(x, y, z + 1);
+            glTexCoord2f(1, 1); glVertex3f(x, y + h, z + 1);
+            glTexCoord2f(0, 1); glVertex3f(x, y + h, z);
+            glEnd();
+        }
+
+        neighbor = (z + 1 >= CHUNK_SIZE_Z) ? world.getBlockAt(globalX, y, globalZ + 1) : blocks[x][y][z + 1];
+        if (shouldRenderFace(current, neighbor)) {
+            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.NORTH));
+            glBegin(GL_QUADS);
+            glNormal3f(0, 0, 1);
+            glTexCoord2f(0, 0); glVertex3f(x, y, z + 1);
+            glTexCoord2f(1, 0); glVertex3f(x + 1, y, z + 1);
+            glTexCoord2f(1, 1); glVertex3f(x + 1, y + h, z + 1);
+            glTexCoord2f(0, 1); glVertex3f(x, y + h, z + 1);
+            glEnd();
+        }
+
+        neighbor = (z - 1 < 0) ? world.getBlockAt(globalX, y, globalZ - 1) : blocks[x][y][z - 1];
+        if (shouldRenderFace(current, neighbor)) {
+            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.SOUTH));
+            glBegin(GL_QUADS);
+            glNormal3f(0, 0, -1);
+            glTexCoord2f(0, 0); glVertex3f(x, y, z);
+            glTexCoord2f(1, 0); glVertex3f(x + 1, y, z);
+            glTexCoord2f(1, 1); glVertex3f(x + 1, y + h, z);
+            glTexCoord2f(0, 1); glVertex3f(x, y + h, z);
+            glEnd();
+        }
     }
 
     private boolean shouldRenderFace(Block current, Block neighbor) {
