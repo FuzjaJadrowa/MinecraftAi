@@ -1,26 +1,35 @@
 package com.minecraftai.engine;
 
-import com.minecraftai.entity.CopperGolem;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.opengl.GL;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.system.MemoryUtil.*;
+import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class Game {
+
+    // Definicja stanów gry
+    private enum GameState {
+        MAIN_MENU,
+        IN_GAME
+    }
 
     private long window;
     private Player player;
     private World world;
-    private CopperGolem copperGolem;
+    private MainMenu mainMenu;
+
+    private GameState currentState;
+
+    // Przechowujemy ostatnią pozycję myszy
+    private double lastX, lastY;
 
     public void run() {
         init();
@@ -34,22 +43,22 @@ public class Game {
         if (!glfwInit()) throw new IllegalStateException("GLFW init failed");
         window = glfwCreateWindow(1280, 720, "Minecraft AI", NULL, NULL);
         if (window == NULL) throw new RuntimeException("Window creation failed");
-        setWindowIcon(window, "assets/icon.png");
-        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-        final double[] lastX = {640};
-        final double[] lastY = {360};
-        glfwSetCursorPosCallback(window, (win, xpos, ypos) -> {
-            double dx = xpos - lastX[0];
-            double dy = ypos - lastY[0];
-            lastX[0] = xpos;
-            lastY[0] = ypos;
-            player.addRotation((float) dx, (float) dy);
-        });
+        setWindowIcon(window, "assets/textures/misc/icon.png");
+        double[] xpos = new double[1];
+        double[] ypos = new double[1];
+        glfwGetCursorPos(window, xpos, ypos);
+        lastX = xpos[0];
+        lastY = ypos[0];
+
+        glfwSetKeyCallback(window, this::keyCallback);
+        glfwSetCursorPosCallback(window, this::cursorPosCallback);
+        glfwSetMouseButtonCallback(window, this::mouseButtonCallback);
+
         glfwMakeContextCurrent(window);
         glfwSwapInterval(1);
         glfwShowWindow(window);
         GL.createCapabilities();
-        glClearColor(0.5f, 0.7f, 1.0f, 0.0f);
+
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_LIGHTING);
         glEnable(GL_LIGHT0);
@@ -61,67 +70,110 @@ public class Game {
         glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
         glEnable(GL_COLOR_MATERIAL);
         glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
-        world = new World();
-        player = new Player(world);
+        glClearColor(0.5f, 0.7f, 1.0f, 0.0f);
+
+        mainMenu = new MainMenu(this);
+        FontRenderer.initFont();
+        currentState = GameState.MAIN_MENU;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
+    private void keyCallback(long window, int key, int scancode, int action, int mods) {
+        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+            if (currentState == GameState.IN_GAME) {
+                pauseGame();
+            } else if (currentState == GameState.MAIN_MENU && player != null) {
+                resumeGame();
+            }
+        }
+    }
+
+    private void cursorPosCallback(long window, double xpos, double ypos) {
+        double dx = xpos - lastX;
+        double dy = ypos - lastY;
+        lastX = xpos;
+        lastY = ypos;
+
+        if (currentState == GameState.IN_GAME) {
+            player.addRotation((float) dx, (float) dy);
+        } else if (currentState == GameState.MAIN_MENU) {
+            mainMenu.handleMouseMove(xpos, ypos);
+        }
+    }
+
+    private void mouseButtonCallback(long window, int button, int action, int mods) {
+        if (currentState == GameState.IN_GAME) {
+            player.handleInput(window);
+        } else if (currentState == GameState.MAIN_MENU) {
+            mainMenu.handleMouseClick(lastX, lastY, button, action);
+        }
     }
 
     private void loop() {
         while (!glfwWindowShouldClose(window)) {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-            glMatrixMode(GL_PROJECTION);
-            glLoadIdentity();
-            int[] width = new int[1];
-            int[] height = new int[1];
-            glfwGetFramebufferSize(window, width, height);
-            float aspect = (float) width[0] / height[0];
-            glViewport(0, 0, width[0], height[0]);
-            perspective(70.0f, aspect, 0.1f, 100.0f);
-            float[] cam = player.getCameraLookAt();
-            glMatrixMode(GL_MODELVIEW);
-            glLoadIdentity();
-            lookAt(cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], 0, 1, 0);
-            if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-                player.tryPlaceBlock(world);
+
+            if (currentState == GameState.IN_GAME) {
+                renderGame();
+            } else {
+                renderMainMenu();
             }
-            if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-                player.tryBreakBlock(world);
-            }
-            if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && copperGolem == null) {
-                float spawnX = player.getX() + 2;
-                float spawnY = player.getY();
-                float spawnZ = player.getZ() + 2;
-                copperGolem = new CopperGolem(spawnX, spawnY, spawnZ);
-            }
-            player.update(window);
-            world.render();
-            if (copperGolem != null) {
-                copperGolem.render();
-            }
+
             glfwSwapBuffers(window);
             glfwPollEvents();
         }
+    }
+
+    private void renderGame() {
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        int[] width = new int[1];
+        int[] height = new int[1];
+        glfwGetFramebufferSize(window, width, height);
+        float aspect = (float) width[0] / height[0];
+        glViewport(0, 0, width[0], height[0]);
+        perspective(70.0f, aspect, 0.1f, 100.0f);
+
+        player.applyCameraTransform();
+        player.handleInput(window);
+        player.update(window);
+        world.render();
+        player.renderEntities();
+    }
+
+    private void renderMainMenu() {
+        mainMenu.render();
+    }
+
+    public void startGame() {
+        if (world == null) {
+            world = new World();
+            player = new Player(world);
+        }
+        resumeGame();
+    }
+
+    public void resumeGame() {
+        currentState = GameState.IN_GAME;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwSetCursorPos(window, 1280 / 2.0, 720 / 2.0);
+        lastX = 1280 / 2.0;
+        lastY = 720 / 2.0;
+    }
+
+    public void pauseGame() {
+        currentState = GameState.MAIN_MENU;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
+    public void quitGame() {
+        glfwSetWindowShouldClose(window, true);
     }
 
     private void perspective(float fov, float aspect, float zNear, float zFar) {
         float ymax = zNear * (float) Math.tan(Math.toRadians(fov / 2));
         float xmax = ymax * aspect;
         glFrustum(-xmax, xmax, -ymax, ymax, zNear, zFar);
-    }
-
-    private void lookAt(float eyeX, float eyeY, float eyeZ, float centerX, float centerY, float centerZ, float upX, float upY, float upZ) {
-        float[] f = {centerX - eyeX, centerY - eyeY, centerZ - eyeZ};
-        float fLen = (float) Math.sqrt(f[0]*f[0] + f[1]*f[1] + f[2]*f[2]);
-        f[0] /= fLen; f[1] /= fLen; f[2] /= fLen;
-        float[] up = {upX, upY, upZ};
-        float upLen = (float) Math.sqrt(up[0]*up[0] + up[1]*up[1] + up[2]*up[2]);
-        up[0]/=upLen; up[1]/=upLen; up[2]/=upLen;
-        float[] s = {f[1]*up[2]-f[2]*up[1], f[2]*up[0]-f[0]*up[2], f[0]*up[1]-f[1]*up[0]};
-        float sLen = (float) Math.sqrt(s[0]*s[0]+s[1]*s[1]+s[2]*s[2]);
-        s[0]/=sLen; s[1]/=sLen; s[2]/=sLen;
-        float[] u = {s[1]*f[2]-s[2]*f[1], s[2]*f[0]-s[0]*f[2], s[0]*f[1]-s[1]*f[0]};
-        float[] m = {s[0], u[0], -f[0],0, s[1], u[1], -f[1],0, s[2], u[2], -f[2],0, 0,0,0,1};
-        glLoadMatrixf(m);
-        glTranslatef(-eyeX, -eyeY, -eyeZ);
     }
 
     public static void setWindowIcon(long window, String resourcePath) {
@@ -131,13 +183,11 @@ public class Game {
                 System.err.println("Nie znaleziono zasobu: " + resourcePath);
                 return;
             }
-
             BufferedImage image = ImageIO.read(stream);
             int width = image.getWidth();
             int height = image.getHeight();
             int[] pixelsRaw = new int[width * height];
             image.getRGB(0, 0, width, height, pixelsRaw, 0, width);
-
             ByteBuffer pixels = ByteBuffer.allocateDirect(width * height * 4);
             for (int y = 0; y < height; y++) {
                 for (int x = 0; x < width; x++) {
@@ -149,16 +199,22 @@ public class Game {
                 }
             }
             pixels.flip();
-
             GLFWImage.Buffer icon = GLFWImage.malloc(1);
             icon.width(width);
             icon.height(height);
             icon.pixels(pixels);
             glfwSetWindowIcon(window, icon);
             icon.free();
-
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public Player getPlayer() {
+        return player;
+    }
+
+    public long getWindowHandle() {
+        return window;
     }
 }

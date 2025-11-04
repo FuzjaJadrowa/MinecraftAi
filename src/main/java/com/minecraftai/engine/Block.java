@@ -1,7 +1,13 @@
 package com.minecraftai.engine;
 
+import static org.lwjgl.opengl.GL11.*;
+
 public abstract class Block {
     protected int x, y, z;
+
+    protected float blockHeight = 1.0f;
+
+    protected boolean isTransparent = false;
 
     public Block(int x, int y, int z) {
         this.x = x; this.y = y; this.z = z;
@@ -27,7 +33,7 @@ public abstract class Block {
         float bx0 = x;
         float bx1 = x + 1;
         float by0 = y;
-        float by1 = y + 1;
+        float by1 = y + this.blockHeight;
         float bz0 = z;
         float bz1 = z + 1;
 
@@ -36,5 +42,16 @@ public abstract class Block {
         boolean collideZ = pz1 > bz0 && pz0 < bz1;
 
         return collideX && collideY && collideZ;
+    }
+
+    protected void setTransparent(float alpha) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(1.0f, 1.0f, 1.0f, alpha);
+    }
+
+    protected void setOpaque() {
+        glDisable(GL_BLEND);
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
 }

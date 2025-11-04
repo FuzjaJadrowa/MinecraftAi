@@ -17,12 +17,14 @@ dependencies {
     implementation("org.lwjgl:lwjgl:$lwjglVersion")
     implementation("org.lwjgl:lwjgl-opengl:$lwjglVersion")
     implementation("org.lwjgl:lwjgl-glfw:$lwjglVersion")
+    implementation("org.lwjgl:lwjgl-stb:${lwjglVersion}")
     implementation("org.joml:joml:$jomlVersion")
     implementation("com.google.code.gson:gson:2.10.1")
 
     runtimeOnly("org.lwjgl:lwjgl:$lwjglVersion:natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-opengl:$lwjglVersion:natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-glfw:$lwjglVersion:natives-windows")
+    runtimeOnly("org.lwjgl:lwjgl-stb:$lwjglVersion:natives-windows")
 }
 
 application {
