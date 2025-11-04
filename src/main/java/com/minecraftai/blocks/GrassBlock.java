@@ -25,7 +25,4 @@ public class GrassBlock extends Block {
                 return dirtTexture;
         }
     }
-
-    @Override
-    public void render() {}
 }

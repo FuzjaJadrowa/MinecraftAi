@@ -1,7 +1,6 @@
 package com.minecraftai.engine;
 
 import com.minecraftai.blocks.Cobblestone;
-import com.minecraftai.blocks.Leaves;
 import com.minecraftai.entity.CopperGolem;
 
 import static org.lwjgl.glfw.GLFW.*;
@@ -179,6 +178,9 @@ public class Player {
         Block target = getTargetBlock(world, 3f);
 
         if (target != null) {
+            if (!target.isDestructible()) {
+                return;
+            }
             world.removeBlock(target.getX(), target.getY(), target.getZ());
             lastBlockBreakTime = now;
         }

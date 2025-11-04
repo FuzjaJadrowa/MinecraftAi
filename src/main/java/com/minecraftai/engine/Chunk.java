@@ -8,9 +8,9 @@ import static org.lwjgl.opengl.GL11.*;
 
 public class Chunk {
 
-    public static final int CHUNK_SIZE_X = 16;
-    public static final int CHUNK_SIZE_Y = 256;
-    public static final int CHUNK_SIZE_Z = 16;
+    public static final int CHUNK_SIZE_X = 8;
+    public static final int CHUNK_SIZE_Y = 128;
+    public static final int CHUNK_SIZE_Z = 8;
 
     private Block[][][] blocks = new Block[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
     private int worldX, worldZ;

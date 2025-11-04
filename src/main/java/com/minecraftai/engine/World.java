@@ -12,7 +12,7 @@ public class World {
     public static final double TERRAIN_SCALE = 0.015;
     public static final double CAVE_SCALE = 0.04;
 
-    public static final int RENDER_DISTANCE = 2;
+    public static final int RENDER_DISTANCE = 4;
 
     public World() {
         this.noiseGen = new SimplexNoise(new Random().nextInt(10000));
@@ -72,7 +72,7 @@ public class World {
         int localZ = globalZ % Chunk.CHUNK_SIZE_Z;
         if (localZ < 0) localZ += Chunk.CHUNK_SIZE_Z;
 
-        chunk.setBlock(localX, globalY, globalZ, block, true);
+        chunk.setBlock(localX, globalY, localZ, block, true);
 
         Chunk neighbor;
         if (localX == 0) {

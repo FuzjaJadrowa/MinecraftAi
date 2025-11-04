@@ -7,6 +7,8 @@ public abstract class Block {
     protected float blockHeight = 1.0f;
     protected boolean isTransparent = false;
 
+    protected boolean isDestructible = true;
+
     public enum Face { TOP, BOTTOM, NORTH, SOUTH, EAST, WEST }
 
     public Block(int x, int y, int z) {
@@ -17,9 +19,6 @@ public abstract class Block {
     public int getY() { return y; }
     public int getZ() { return z; }
     public abstract int getTextureID(Face face);
-
-    public void render() {
-    }
 
     public boolean collidesWithPlayer(float playerX, float playerY, float playerZ) {
         float playerWidth = 0.3f;
@@ -52,6 +51,10 @@ public abstract class Block {
 
     public boolean isTransparent() {
         return isTransparent;
+    }
+
+    public boolean isDestructible() {
+        return isDestructible;
     }
 
     public void setTransparent(float alpha) {

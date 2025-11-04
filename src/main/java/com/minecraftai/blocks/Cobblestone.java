@@ -16,7 +16,4 @@ public class Cobblestone extends Block {
     public int getTextureID(Face face) {
         return texture;
     }
-
-    @Override
-    public void render() {}
 }

@@ -23,7 +23,4 @@ public class Log extends Block {
                 return logTexture;
         }
     }
-
-    @Override
-    public void render() {}
 }
