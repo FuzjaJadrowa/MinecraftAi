@@ -1,13 +1,12 @@
 package com.minecraftai.engine;
 
-import com.minecraftai.blocks.Cobblestone;
+import com.minecraftai.blocks.Leaves;
 import com.minecraftai.entity.CopperGolem;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 
 public class Player {
-
     private float x, y, z;
     private float yaw, pitch;
     private final float speed = 0.02f;
@@ -99,7 +98,6 @@ public class Player {
         }
 
         velocityY -= gravity;
-
         float nextY = y + velocityY;
 
         if (velocityY > 0 && collides(x, nextY + 0.1f, z)) {
@@ -107,7 +105,7 @@ public class Player {
         }
         else if (velocityY < 0 && collides(x, nextY - 0.05f, z)) {
             velocityY = 0;
-            y = (float) Math.floor(y);
+            y = (float) Math.floor(nextY) + 1.0f - 0.001f;
         } else {
             y = nextY;
         }
@@ -121,8 +119,29 @@ public class Player {
     }
 
     private boolean collides(float nextX, float nextY, float nextZ) {
-        for (Block b : world.getBlocks()) {
-            if (b.collidesWithPlayer(nextX, nextY, nextZ)) return true;
+        float playerWidth = 0.3f;
+        float playerHeight = 1.7f;
+
+        int minX = (int) Math.floor(nextX - playerWidth);
+        int maxX = (int) Math.ceil(nextX + playerWidth);
+        int minY = (int) Math.floor(nextY);
+        int maxY = (int) Math.ceil(nextY + playerHeight);
+        int minZ = (int) Math.floor(nextZ - playerWidth);
+        int maxZ = (int) Math.ceil(nextZ + playerWidth);
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+
+                    Block b = world.getBlockAt(x, y, z);
+
+                    if (b != null) {
+                        if (b.collidesWithPlayer(nextX, nextY, nextZ)) {
+                            return true;
+                        }
+                    }
+                }
+            }
         }
         return false;
     }
@@ -154,9 +173,11 @@ public class Player {
     public void tryBreakBlock(World world) {
         long now = System.nanoTime();
         if (now - lastBlockBreakTime < blockBreakCooldown) return;
+
         Block target = getTargetBlock(world, 3f);
+
         if (target != null) {
-            world.removeBlock(target.getX(), target.getY(), target.getZ());
+            world.removeBlock(target.getX(), target.getY(), target.getZ()); // Używa setBlockAt(null)
             lastBlockBreakTime = now;
         }
     }
@@ -193,23 +214,16 @@ public class Player {
             int currentBlockZ = (int)Math.floor(currentRayZ);
 
             if (currentBlockX != prevX || currentBlockY != prevY || currentBlockZ != prevZ) {
+                Block b = world.getBlockAt(currentBlockX, currentBlockY, currentBlockZ);
 
-                boolean occupied = false;
-                for (Block b : world.getBlocks()) {
-                    if (b.getX() == currentBlockX && b.getY() == currentBlockY && b.getZ() == currentBlockZ) {
-                        occupied = true;
-                        break;
-                    }
-                }
-
-                if (occupied) {
-                    Block newBlock = new Cobblestone(prevX, prevY, prevZ);
+                if (b != null) {
+                    Block newBlock = new Leaves(prevX, prevY, prevZ);
 
                     if (newBlock.collidesWithPlayer(this.x, this.y, this.z)) {
                         return;
                     }
 
-                    world.addBlock(prevX, prevY, prevZ, new Cobblestone(prevX, prevY, prevZ));
+                    world.addBlock(prevX, prevY, prevZ, newBlock);
                     lastBlockPlaceTime = now;
                     return;
                 }
@@ -235,8 +249,9 @@ public class Player {
             float checkX = eyeX + dirX * t;
             float checkY = eyeY + dirY * t;
             float checkZ = eyeZ + dirZ * t;
-            for (Block b : world.getBlocks()) {
-                if ((int)checkX == b.getX() && (int)checkY == b.getY() && (int)checkZ == b.getZ()) return b;
+            Block b = world.getBlockAt((int)Math.floor(checkX), (int)Math.floor(checkY), (int)Math.floor(checkZ));
+            if (b != null) {
+                return b;
             }
         }
         return null;

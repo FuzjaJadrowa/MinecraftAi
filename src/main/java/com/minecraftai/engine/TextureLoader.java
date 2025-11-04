@@ -9,7 +9,6 @@ import java.nio.ByteBuffer;
 import static org.lwjgl.opengl.GL11.*;
 
 public class TextureLoader {
-
     public static int loadTexture(String path) {
         try (InputStream is = TextureLoader.class.getResourceAsStream(path)) {
             if (is == null) throw new IOException("Nie znaleziono pliku: " + path);

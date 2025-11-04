@@ -4,10 +4,10 @@ import static org.lwjgl.opengl.GL11.*;
 
 public abstract class Block {
     protected int x, y, z;
-
     protected float blockHeight = 1.0f;
-
     protected boolean isTransparent = false;
+
+    public enum Face { TOP, BOTTOM, NORTH, SOUTH, EAST, WEST }
 
     public Block(int x, int y, int z) {
         this.x = x; this.y = y; this.z = z;
@@ -16,8 +16,10 @@ public abstract class Block {
     public int getX() { return x; }
     public int getY() { return y; }
     public int getZ() { return z; }
+    public abstract int getTextureID(Face face);
 
-    public abstract void render();
+    public void render() {
+    }
 
     public boolean collidesWithPlayer(float playerX, float playerY, float playerZ) {
         float playerWidth = 0.3f;
@@ -44,14 +46,19 @@ public abstract class Block {
         return collideX && collideY && collideZ;
     }
 
-    protected void setTransparent(float alpha) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    public boolean isSolid() {
+        return !isTransparent;
+    }
+
+    public boolean isTransparent() {
+        return isTransparent;
+    }
+
+    public void setTransparent(float alpha) {
         glColor4f(1.0f, 1.0f, 1.0f, alpha);
     }
 
-    protected void setOpaque() {
-        glDisable(GL_BLEND);
+    public void setOpaque() {
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
 }

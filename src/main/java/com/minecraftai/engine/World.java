@@ -1,107 +1,117 @@
 package com.minecraftai.engine;
 
-import com.minecraftai.blocks.GrassBlock;
-import com.minecraftai.blocks.Stone;
-import com.minecraftai.blocks.Dirt;
-import com.minecraftai.blocks.Water;
-import com.minecraftai.generator.Tree;
-
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
 public class World {
+    private Map<String, Chunk> chunks = new HashMap<>();
+    public SimplexNoise noiseGen;
+    public static final int BASE_Y = 64;
+    public static final int WATER_LEVEL = 64;
+    public static final double TERRAIN_SCALE = 0.015;
+    public static final double CAVE_SCALE = 0.04;
 
-    private List<Block> blocks = new ArrayList<>();
-    private SimplexNoise noiseGen;
-
-    private static final int WORLD_SIZE_XZ = 2;
-    private static final int BASE_Y = 64;
-    private static final int WATER_LEVEL = 64;
-    private static final int MIN_Y = 0;
-    private static final double TERRAIN_SCALE = 0.015;
-    private static final double CAVE_SCALE = 0.04;
-
-    public List<Block> getBlocks() {
-        return blocks;
-    }
+    public static final int RENDER_DISTANCE = 1;
 
     public World() {
-        this.noiseGen = new SimplexNoise(new Random().nextInt());
+        this.noiseGen = new SimplexNoise(new Random().nextInt(10000));
+        // Tree treeGen = new Tree(this);
+        // treeGen.generateRandomTrees(40);
+    }
 
-        for (int x = -WORLD_SIZE_XZ / 2; x < WORLD_SIZE_XZ / 2; x++) {
-            for (int z = -WORLD_SIZE_XZ / 2; z < WORLD_SIZE_XZ / 2; z++) {
-                double terrainNoise = noiseGen.noise(x * TERRAIN_SCALE, z * TERRAIN_SCALE); // Wartość od -1 do 1
-                int surfaceHeight;
-                if (terrainNoise < 0) {
-                    surfaceHeight = BASE_Y + (int) (terrainNoise * 5.0);
-                } else {
-                    surfaceHeight = BASE_Y + (int) (terrainNoise * 20.0);
-                }
+    public Chunk getOrLoadChunk(int chunkX, int chunkZ) {
+        String key = chunkX + "_" + chunkZ;
 
-                for (int y = MIN_Y; y <= surfaceHeight; y++) {
-                    if (y < BASE_Y - 5) {
-                        double caveNoise = noiseGen.noise(x * CAVE_SCALE, y * CAVE_SCALE * 2.0, z * CAVE_SCALE);
+        return chunks.computeIfAbsent(key, k -> {
+            return new Chunk(chunkX, chunkZ, this, noiseGen);
+        });
+    }
 
-                        if (caveNoise > 0.6) {
-                            continue;
-                        }
-                    }
+    public void render(Player player) {
+        int playerChunkX = (int) Math.floor(player.getX() / Chunk.CHUNK_SIZE_X);
+        int playerChunkZ = (int) Math.floor(player.getZ() / Chunk.CHUNK_SIZE_Z);
 
-                    if (y == surfaceHeight) {
-                        if (y >= WATER_LEVEL) {
-                            blocks.add(new GrassBlock(x, y, z));
-                        } else {
-                            blocks.add(new Dirt(x, y, z));
-                        }
-                    } else if (y > surfaceHeight - 4) {
-                        blocks.add(new Dirt(x, y, z));
-                    } else {
-                        blocks.add(new Stone(x, y, z));
-                    }
-                }
-
-                if (surfaceHeight < WATER_LEVEL) {
-
-                    for (int y_water = surfaceHeight + 1; y_water <= WATER_LEVEL; y_water++) {
-                        blocks.add(new Water(x, y_water, z));
-                    }
-                }
-
+        for (int x = playerChunkX - RENDER_DISTANCE; x <= playerChunkX + RENDER_DISTANCE; x++) {
+            for (int z = playerChunkZ - RENDER_DISTANCE; z <= playerChunkZ + RENDER_DISTANCE; z++) {
+                Chunk chunk = getOrLoadChunk(x, z);
+                chunk.render(this);
             }
         }
-
-        Tree treeGen = new Tree(this);
-        treeGen.generateRandomTrees(40);
     }
 
     public void render() {
-        for (Block b : blocks) {
-            b.render();
+        System.err.println("Wywołano starą metodę render()! Popraw Game.java!");
+    }
+
+    public Block getBlockAt(int globalX, int globalY, int globalZ) {
+        if (globalY < 0 || globalY >= Chunk.CHUNK_SIZE_Y) {
+            return null;
         }
+
+        int chunkX = (int) Math.floor((double) globalX / Chunk.CHUNK_SIZE_X);
+        int chunkZ = (int) Math.floor((double) globalZ / Chunk.CHUNK_SIZE_Z);
+
+        Chunk chunk = chunks.get(chunkX + "_" + chunkZ);
+        if (chunk == null) {
+            return null;
+        }
+
+        int localX = globalX % Chunk.CHUNK_SIZE_X;
+        if (localX < 0) localX += Chunk.CHUNK_SIZE_X;
+
+        int localZ = globalZ % Chunk.CHUNK_SIZE_Z;
+        if (localZ < 0) localZ += Chunk.CHUNK_SIZE_Z;
+
+        return chunk.getBlock(localX, globalY, globalZ);
+    }
+
+    public void setBlockAt(int globalX, int globalY, int globalZ, Block block) {
+        if (globalY < 0 || globalY >= Chunk.CHUNK_SIZE_Y) return;
+
+        int chunkX = (int) Math.floor((double) globalX / Chunk.CHUNK_SIZE_X);
+        int chunkZ = (int) Math.floor((double) globalZ / Chunk.CHUNK_SIZE_Z);
+
+        Chunk chunk = getOrLoadChunk(chunkX, chunkZ);
+
+        int localX = globalX % Chunk.CHUNK_SIZE_X;
+        if (localX < 0) localX += Chunk.CHUNK_SIZE_X;
+
+        int localZ = globalZ % Chunk.CHUNK_SIZE_Z;
+        if (localZ < 0) localZ += Chunk.CHUNK_SIZE_Z;
+
+        chunk.setBlock(localX, globalY, globalZ, block);
     }
 
     public void addBlock(int x, int y, int z, Block block) {
-        blocks.add(block);
+        setBlockAt(x, y, z, block);
     }
 
     public void removeBlock(int x, int y, int z) {
-        blocks.removeIf(b -> b.getX() == x && b.getY() == y && b.getZ() == z);
+        setBlockAt(x, y, z, null);
     }
 
     public int getHeightAt(int x, int z) {
-        int maxY = -1;
-        for (Block b : blocks) {
-            if (b.getX() == x && b.getZ() == z) {
-                if (!(b instanceof Water)) {
-                    if (b.getY() > maxY) maxY = (int)b.getY();
-                }
+        int chunkX = (int) Math.floor((double) x / Chunk.CHUNK_SIZE_X);
+        int chunkZ = (int) Math.floor((double) z / Chunk.CHUNK_SIZE_Z);
+        Chunk chunk = chunks.get(chunkX + "_" + chunkZ);
+        if (chunk == null) return -1; // Nie wiemy, nie jest załadowany
+
+        int localX = x % Chunk.CHUNK_SIZE_X;
+        if (localX < 0) localX += Chunk.CHUNK_SIZE_X;
+        int localZ = z % Chunk.CHUNK_SIZE_Z;
+        if (localZ < 0) localZ += Chunk.CHUNK_SIZE_Z;
+
+        for (int y = Chunk.CHUNK_SIZE_Y - 1; y > 0; y--) {
+            Block b = chunk.getBlock(localX, y, localZ);
+            if (b != null && b.isSolid()) {
+                return y;
             }
         }
-        return maxY;
+        return -1;
     }
 
-    private static class SimplexNoise {
+    public static class SimplexNoise {
         private static final double STRETCH_CONSTANT_2D = -0.211324865405187;
         private static final double SQUISH_CONSTANT_2D = 0.366025403784439;
         private static final double STRETCH_CONSTANT_3D = -1.0 / 6.0;

@@ -14,8 +14,6 @@ import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class Game {
-
-    // Definicja stanów gry
     private enum GameState {
         MAIN_MENU,
         IN_GAME
@@ -25,10 +23,7 @@ public class Game {
     private Player player;
     private World world;
     private MainMenu mainMenu;
-
     private GameState currentState;
-
-    // Przechowujemy ostatnią pozycję myszy
     private double lastX, lastY;
 
     public void run() {
@@ -137,7 +132,7 @@ public class Game {
         player.applyCameraTransform();
         player.handleInput(window);
         player.update(window);
-        world.render();
+        world.render(player);
         player.renderEntities();
     }
 
