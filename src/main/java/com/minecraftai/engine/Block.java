@@ -2,6 +2,8 @@ package com.minecraftai.engine;
 
 import static org.lwjgl.opengl.GL11.*;
 
+import com.minecraftai.engine.ItemType;
+
 public abstract class Block {
     protected int x, y, z;
     protected float blockHeight = 1.0f;
@@ -19,6 +21,8 @@ public abstract class Block {
     public int getY() { return y; }
     public int getZ() { return z; }
     public abstract int getTextureID(Face face);
+
+    public abstract ItemType getItemDrop();
 
     public boolean collidesWithPlayer(float playerX, float playerY, float playerZ) {
         float playerWidth = 0.3f;

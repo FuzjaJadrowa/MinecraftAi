@@ -1,6 +1,7 @@
 package com.minecraftai.blocks;
 
 import com.minecraftai.engine.Block;
+import com.minecraftai.engine.ItemType;
 import com.minecraftai.engine.TextureLoader;
 
 public class Log extends Block {
@@ -22,5 +23,10 @@ public class Log extends Block {
             default:
                 return logTexture;
         }
+    }
+
+    @Override
+    public ItemType getItemDrop() {
+        return ItemType.LOG;
     }
 }

@@ -1,6 +1,10 @@
 package com.minecraftai.engine;
 
 import com.minecraftai.blocks.Cobblestone;
+import com.minecraftai.blocks.Dirt;
+import com.minecraftai.blocks.Log;
+import com.minecraftai.engine.ItemStack;
+import com.minecraftai.engine.ItemType;
 import com.minecraftai.entity.CopperGolem;
 
 import static org.lwjgl.glfw.GLFW.*;
@@ -20,6 +24,9 @@ public class Player {
     private final long blockPlaceCooldown = 200_000_000L;
     private CopperGolem copperGolem;
     private World world;
+
+    private int selectedSlot = 0;
+    private ItemStack[] inventory = new ItemStack[9];
 
     public Player(World world) {
         this.world = world;
@@ -171,6 +178,25 @@ public class Player {
         return new float[]{eyeX, eyeY, eyeZ, lookX, lookY, lookZ};
     }
 
+    public void addItem(ItemType itemType) {
+        if (itemType == null) return;
+
+        for (int i = 0; i < inventory.length; i++) {
+            ItemStack stack = inventory[i];
+            if (stack != null && stack.getType() == itemType && !stack.isFull()) {
+                stack.addAmount(1);
+                return;
+            }
+        }
+
+        for (int i = 0; i < inventory.length; i++) {
+            if (inventory[i] == null) {
+                inventory[i] = new ItemStack(itemType, 1);
+                return;
+            }
+        }
+    }
+
     public void tryBreakBlock(World world) {
         long now = System.nanoTime();
         if (now - lastBlockBreakTime < blockBreakCooldown) return;
@@ -181,14 +207,26 @@ public class Player {
             if (!target.isDestructible()) {
                 return;
             }
+
+            ItemType drop = target.getItemDrop();
+
             world.removeBlock(target.getX(), target.getY(), target.getZ());
             lastBlockBreakTime = now;
+
+            if (drop != null) {
+                addItem(drop);
+            }
         }
     }
 
     public void tryPlaceBlock(World world) {
         long now = System.nanoTime();
         if (now - lastBlockPlaceTime < blockPlaceCooldown) return;
+
+        ItemStack heldStack = inventory[selectedSlot];
+        if (heldStack == null) {
+            return;
+        }
 
         float maxDistance = 4f;
 
@@ -221,14 +259,31 @@ public class Player {
                 Block b = world.getBlockAt(currentBlockX, currentBlockY, currentBlockZ);
 
                 if (b != null) {
-                    Block newBlock = new Cobblestone(prevX, prevY, prevZ);
+                    Block newBlock = null;
+                    switch (heldStack.getType()) {
+                        case DIRT:
+                            newBlock = new Dirt(prevX, prevY, prevZ);
+                            break;
+                        case COBBLESTONE:
+                            newBlock = new Cobblestone(prevX, prevY, prevZ);
+                            break;
+                        case LOG:
+                            newBlock = new Log(prevX, prevY, prevZ);
+                            break;
+                    }
 
-                    if (newBlock.collidesWithPlayer(this.x, this.y, this.z)) {
+                    if (newBlock == null || newBlock.collidesWithPlayer(this.x, this.y, this.z)) {
                         return;
                     }
 
                     world.addBlock(prevX, prevY, prevZ, newBlock);
                     lastBlockPlaceTime = now;
+
+                    heldStack.setCount(heldStack.getCount() - 1);
+                    if (heldStack.getCount() <= 0) {
+                        inventory[selectedSlot] = null;
+                    }
+
                     return;
                 }
 
@@ -264,4 +319,18 @@ public class Player {
     public float getX() { return x; }
     public float getY() { return y; }
     public float getZ() { return z; }
+
+    public int getSelectedSlot() {
+        return selectedSlot;
+    }
+
+    public void setSelectedSlot(int slot) {
+        if (slot >= 0 && slot < 9) {
+            this.selectedSlot = slot;
+        }
+    }
+
+    public ItemStack[] getInventory() {
+        return inventory;
+    }
 }

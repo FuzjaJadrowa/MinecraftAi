@@ -26,6 +26,8 @@ public class Game {
     private GameState currentState;
     private double lastX, lastY;
 
+    private Hotbar hotbar;
+
     public void run() {
         init();
         loop();
@@ -71,6 +73,7 @@ public class Game {
         FontRenderer.initFont();
         currentState = GameState.MAIN_MENU;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
     }
 
     private void keyCallback(long window, int key, int scancode, int action, int mods) {
@@ -79,6 +82,13 @@ public class Game {
                 pauseGame();
             } else if (currentState == GameState.MAIN_MENU && player != null) {
                 resumeGame();
+            }
+        }
+
+        if (currentState == GameState.IN_GAME && action == GLFW_PRESS) {
+            if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9) {
+                int slotIndex = key - GLFW_KEY_1;
+                player.setSelectedSlot(slotIndex);
             }
         }
     }
@@ -134,6 +144,10 @@ public class Game {
         player.update(window);
         world.render(player);
         player.renderEntities();
+
+        if (hotbar != null) {
+            hotbar.render(window);
+        }
     }
 
     private void renderMainMenu() {
@@ -144,6 +158,9 @@ public class Game {
         if (world == null) {
             world = new World();
             player = new Player(world);
+
+            hotbar = new Hotbar(player);
+            hotbar.init();
         }
         resumeGame();
     }

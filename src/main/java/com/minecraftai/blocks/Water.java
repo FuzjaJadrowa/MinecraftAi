@@ -1,6 +1,7 @@
 package com.minecraftai.blocks;
 
 import com.minecraftai.engine.Block;
+import com.minecraftai.engine.ItemType;
 import com.minecraftai.engine.TextureLoader;
 
 public class Water extends Block {
@@ -30,5 +31,10 @@ public class Water extends Block {
     @Override
     public boolean collidesWithPlayer(float playerX, float playerY, float playerZ) {
         return false;
+    }
+
+    @Override
+    public ItemType getItemDrop() {
+        return null;
     }
 }

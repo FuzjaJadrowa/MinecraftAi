@@ -1,6 +1,7 @@
 package com.minecraftai.blocks;
 
 import com.minecraftai.engine.Block;
+import com.minecraftai.engine.ItemType;
 import com.minecraftai.engine.TextureLoader;
 
 public class GrassBlock extends Block {
@@ -24,5 +25,10 @@ public class GrassBlock extends Block {
             default:
                 return dirtTexture;
         }
+    }
+
+    @Override
+    public ItemType getItemDrop() {
+        return ItemType.DIRT;
     }
 }

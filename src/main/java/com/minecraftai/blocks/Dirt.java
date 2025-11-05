@@ -1,6 +1,7 @@
 package com.minecraftai.blocks;
 
 import com.minecraftai.engine.Block;
+import com.minecraftai.engine.ItemType;
 import com.minecraftai.engine.TextureLoader;
 
 public class Dirt extends Block {
@@ -15,5 +16,10 @@ public class Dirt extends Block {
     @Override
     public int getTextureID(Face face) {
         return texture;
+    }
+
+    @Override
+    public ItemType getItemDrop() {
+        return ItemType.DIRT;
     }
 }

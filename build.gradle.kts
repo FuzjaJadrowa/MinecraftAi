@@ -25,6 +25,16 @@ dependencies {
     runtimeOnly("org.lwjgl:lwjgl-opengl:$lwjglVersion:natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-glfw:$lwjglVersion:natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-stb:$lwjglVersion:natives-windows")
+
+    runtimeOnly("org.lwjgl:lwjgl:$lwjglVersion:natives-macos")
+    runtimeOnly("org.lwjgl:lwjgl-opengl:$lwjglVersion:natives-macos")
+    runtimeOnly("org.lwjgl:lwjgl-glfw:$lwjglVersion:natives-macos")
+    runtimeOnly("org.lwjgl:lwjgl-stb:$lwjglVersion:natives-macos")
+
+    runtimeOnly("org.lwjgl:lwjgl:$lwjglVersion:natives-linux")
+    runtimeOnly("org.lwjgl:lwjgl-opengl:$lwjglVersion:natives-linux")
+    runtimeOnly("org.lwjgl:lwjgl-glfw:$lwjglVersion:natives-linux")
+    runtimeOnly("org.lwjgl:lwjgl-stb:$lwjglVersion:natives-linux")
 }
 
 application {
