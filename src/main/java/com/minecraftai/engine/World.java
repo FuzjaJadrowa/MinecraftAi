@@ -2,22 +2,21 @@ package com.minecraftai.engine;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.lwjgl.opengl.GL11.*;
 
 public class World {
-    private Map<String, Chunk> chunks = new HashMap<>();
+    private Map<String, Chunk> chunks = new ConcurrentHashMap<>();
     public SimplexNoise noiseGen;
     public static final int BASE_Y = 64;
     public static final int WATER_LEVEL = 64;
     public static final double TERRAIN_SCALE = 0.015;
     public static final double CAVE_SCALE = 0.04;
 
-    public static final int RENDER_DISTANCE = 4;
+    public static int RENDER_DISTANCE = 4;
 
     public World() {
         this.noiseGen = new SimplexNoise(new Random().nextInt(10000));
@@ -25,9 +24,16 @@ public class World {
 
     public Chunk getOrLoadChunk(int chunkX, int chunkZ) {
         String key = chunkX + "_" + chunkZ;
-        return chunks.computeIfAbsent(key, k -> {
-            return new Chunk(chunkX, chunkZ, this, noiseGen);
+
+        Chunk chunk = chunks.computeIfAbsent(key, k -> {
+            return new Chunk(chunkX, chunkZ);
         });
+
+        if (!chunk.isGenerated()) {
+            chunk.generate(this, noiseGen);
+        }
+
+        return chunk;
     }
 
     public void render(Player player) {

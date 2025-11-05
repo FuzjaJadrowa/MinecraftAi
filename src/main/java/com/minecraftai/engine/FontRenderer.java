@@ -47,7 +47,7 @@ public class FontRenderer {
             alignedQuad = STBTTAlignedQuad.malloc();
 
         } catch (IOException e) {
-            throw new RuntimeException("Nie udało się załadować lub zainicjalizować czcionki.", e);
+            throw new RuntimeException("Nie udało się załadować lub zainicjować czcionki.", e);
         }
     }
 
@@ -88,5 +88,25 @@ public class FontRenderer {
         glDisable(GL_BLEND);
         glBindTexture(GL_TEXTURE_2D, 0);
         glDisable(GL_TEXTURE_2D);
+    }
+
+    public static float getStringWidth(String text) {
+        if (charData == null) return 0;
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            FloatBuffer xPos = stack.floats(0);
+            FloatBuffer yPos = stack.floats(0);
+
+            STBTTAlignedQuad q = STBTTAlignedQuad.mallocStack(stack);
+
+            for (int i = 0; i < text.length(); i++) {
+                char c = text.charAt(i);
+                if (c >= 32 && c < 32 + 96) {
+                    STBTruetype.stbtt_GetBakedQuad(charData, BITMAP_W, BITMAP_H, c - 32, xPos, yPos, q, false);
+                }
+            }
+
+            return xPos.get(0);
+        }
     }
 }

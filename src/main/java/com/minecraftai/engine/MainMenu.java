@@ -13,8 +13,13 @@ public class MainMenu {
     private final float[] playButtonRect = { 1280 / 2 - 150, 350, 300, 60 };
     private final float[] quitButtonRect = { 1280 / 2 - 150, 450, 300, 60 };
 
+    private final float[] sliderRect = new float[4];
+    private final float[] sliderKnobRect = new float[4];
+    private boolean isDraggingSlider = false;
+
     private boolean isPlayHovered = false;
     private boolean isQuitHovered = false;
+
 
     public MainMenu(Game game) {
         this.game = game;
@@ -25,20 +30,44 @@ public class MainMenu {
     public void handleMouseMove(double x, double y) {
         isPlayHovered = isMouseOver(x, y, playButtonRect);
         isQuitHovered = isMouseOver(x, y, quitButtonRect);
+
+        if (isDraggingSlider) {
+            updateSliderValue(x);
+        }
     }
 
     public void handleMouseClick(double x, double y, int button, int action) {
-        if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
-            if (isPlayHovered) {
-                if (game.getPlayer() != null) {
-                    game.resumeGame();
-                } else {
-                    game.startGame();
+        if (button == GLFW_MOUSE_BUTTON_LEFT) {
+            if (action == GLFW_PRESS) {
+                if (isPlayHovered) {
+                    if (game.getPlayer() != null) {
+                        game.resumeGame();
+                    } else {
+                        game.startGame();
+                    }
+                } else if (isQuitHovered) {
+                    game.quitGame();
+                } else if (isMouseOver(x, y, sliderRect)) {
+                    isDraggingSlider = true;
+                    updateSliderValue(x);
                 }
-            } else if (isQuitHovered) {
-                game.quitGame();
+            } else if (action == GLFW_RELEASE) {
+                isDraggingSlider = false;
             }
         }
+    }
+
+    private void updateSliderValue(double mouseX) {
+        float sliderX = sliderRect[0];
+        float sliderWidth = sliderRect[2];
+
+        float relativeX = Math.max(0, Math.min((float)mouseX - sliderX, sliderWidth));
+
+        float percentage = relativeX / sliderWidth;
+
+        int newValue = 1 + Math.round(percentage * 9);
+
+        World.RENDER_DISTANCE = newValue;
     }
 
     public void render() {
@@ -58,8 +87,19 @@ public class MainMenu {
         float playY = currentH * 0.50f;
         float quitY = playY + buttonHeight + 20;
 
+        float sliderY = quitY + buttonHeight + 40;
+        float sliderBarHeight = 10;
+        float knobWidth = 20;
+        float knobHeight = 24;
+
         playButtonRect[0] = buttonX; playButtonRect[1] = playY; playButtonRect[2] = buttonWidth; playButtonRect[3] = buttonHeight;
         quitButtonRect[0] = buttonX; quitButtonRect[1] = quitY; quitButtonRect[2] = buttonWidth; quitButtonRect[3] = buttonHeight;
+
+        sliderRect[0] = buttonX;
+        sliderRect[1] = sliderY - (knobHeight - sliderBarHeight) / 2;
+        sliderRect[2] = buttonWidth;
+        sliderRect[3] = knobHeight;
+
 
         glEnable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
@@ -84,12 +124,33 @@ public class MainMenu {
         }
         drawSolidQuad(buttonX, quitY, buttonWidth, buttonHeight);
         glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-        float playTextX = buttonX + (buttonWidth / 2) - 40;
-        float quitTextX = buttonX + (buttonWidth / 2) - 35;
+        float playTextX = buttonX + (buttonWidth - FontRenderer.getStringWidth("PLAY")) / 2;
+        float quitTextX = buttonX + (buttonWidth - FontRenderer.getStringWidth("QUIT")) / 2;
         float textYOffset = (buttonHeight / 2) + (FontRenderer.FONT_HEIGHT / 2);
 
         FontRenderer.drawString("PLAY", playTextX, playY + textYOffset);
         FontRenderer.drawString("QUIT", quitTextX, quitY + textYOffset);
+
+        String rdText = "Render Distance: " + World.RENDER_DISTANCE;
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        float textX = buttonX + (buttonWidth - FontRenderer.getStringWidth(rdText)) / 2;
+        float textY = sliderY - FontRenderer.FONT_HEIGHT / 2;
+        FontRenderer.drawString(rdText, textX, textY);
+
+        glColor4f(0.2f, 0.2f, 0.2f, 0.7f);
+        drawSolidQuad(buttonX, sliderY, buttonWidth, sliderBarHeight);
+
+        float currentPercentage = (World.RENDER_DISTANCE - 1) / 9.0f;
+        float knobX = buttonX + (currentPercentage * buttonWidth) - (knobWidth / 2);
+        float knobY = sliderY + (sliderBarHeight / 2) - (knobHeight / 2);
+
+        sliderKnobRect[0] = knobX;
+        sliderKnobRect[1] = knobY;
+        sliderKnobRect[2] = knobWidth;
+        sliderKnobRect[3] = knobHeight;
+
+        glColor4f(0.9f, 0.9f, 0.9f, 0.8f);
+        drawSolidQuad(knobX, knobY, knobWidth, knobHeight);
 
         glDisable(GL_BLEND);
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);

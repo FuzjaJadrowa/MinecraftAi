@@ -4,27 +4,33 @@ import com.minecraftai.blocks.Leaves;
 import com.minecraftai.blocks.Log;
 import com.minecraftai.engine.Block;
 import com.minecraftai.engine.Chunk;
+import com.minecraftai.engine.World;
 
 import java.util.Random;
 
 public class Tree {
-   private static final Random random = new Random();
+    private static final Random random = new Random();
 
-    public static void generateTree(Block[][][] blocks, int localX, int localY, int localZ, int globalX, int globalZ) {
-        int treeHeight = 4 + random.nextInt(3); // Wysokość 4-6
-        if (localY + treeHeight + 1 >= Chunk.CHUNK_SIZE_Y) {
+    public static void generateTree(World world, int globalX, int globalY, int globalZ) {
+        int treeHeight = 4 + random.nextInt(3);
+
+        if (globalY + treeHeight + 1 >= Chunk.CHUNK_SIZE_Y) {
             return;
         }
 
         for (int i = 0; i < treeHeight; i++) {
-            int currentY = localY + i;
-            blocks[localX][currentY][localZ] = new Log(globalX, currentY, globalZ);
+            int currentY = globalY + i;
+            world.setBlockAt(globalX, currentY, globalZ, new Log(globalX, currentY, globalZ));
         }
 
-        int leafStartY = localY + treeHeight - 2;
-        int leafTopY = localY + treeHeight + 1;
+        int leafStartY = globalY + treeHeight - 2;
+        int leafTopY = globalY + treeHeight + 1;
 
         for (int y = leafStartY; y < leafTopY; y++) {
+            if (y < 0 || y >= Chunk.CHUNK_SIZE_Y) {
+                continue;
+            }
+
             int radius = (y == leafTopY - 1) ? 1 : 2;
 
             for (int x = -radius; x <= radius; x++) {
@@ -34,18 +40,11 @@ public class Tree {
                         continue;
                     }
 
-                    int currentLocalX = localX + x;
-                    int currentLocalZ = localZ + z;
+                    int currentGlobalX = globalX + x;
+                    int currentGlobalZ = globalZ + z;
 
-                    if (currentLocalX < 0 || currentLocalX >= Chunk.CHUNK_SIZE_X ||
-                            currentLocalZ < 0 || currentLocalZ >= Chunk.CHUNK_SIZE_Z) {
-                        continue;
-                    }
-
-                    if (blocks[currentLocalX][y][currentLocalZ] == null) {
-                        int currentGlobalX = globalX + x;
-                        int currentGlobalZ = globalZ + z;
-                        blocks[currentLocalX][y][currentLocalZ] = new Leaves(currentGlobalX, y, currentGlobalZ);
+                    if (world.getBlockAt(currentGlobalX, y, currentGlobalZ) == null) {
+                        world.setBlockAt(currentGlobalX, y, currentGlobalZ, new Leaves(currentGlobalX, y, currentGlobalZ));
                     }
                 }
             }

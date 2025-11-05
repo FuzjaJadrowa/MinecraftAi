@@ -21,12 +21,20 @@ public class Chunk {
 
     private boolean needsRebuild = true;
 
-    public Chunk(int chunkX, int chunkZ, World world, World.SimplexNoise noiseGen) {
+    private volatile boolean isGenerated = false;
+
+    public Chunk(int chunkX, int chunkZ) {
         this.worldX = chunkX;
         this.worldZ = chunkZ;
+    }
 
-        int startX = chunkX * CHUNK_SIZE_X;
-        int startZ = chunkZ * CHUNK_SIZE_Z;
+    public void generate(World world, World.SimplexNoise noiseGen) {
+        if (isGenerated) {
+            return;
+        }
+
+        int startX = worldX * CHUNK_SIZE_X;
+        int startZ = worldZ * CHUNK_SIZE_Z;
 
         int[][] surfaceHeights = new int[CHUNK_SIZE_X][CHUNK_SIZE_Z];
         boolean[][] isGrass = new boolean[CHUNK_SIZE_X][CHUNK_SIZE_Z];
@@ -84,12 +92,17 @@ public class Chunk {
                     int globalZ = startZ + z;
                     int y = surfaceHeights[x][z] + 1;
 
-                    Tree.generateTree(this.blocks, x, y, z, globalX, globalZ);
+                    Tree.generateTree(world, globalX, y, globalZ);
                 }
             }
         }
 
         this.needsRebuild = true;
+        this.isGenerated = true;
+    }
+
+    public boolean isGenerated() {
+        return isGenerated;
     }
 
     public double getDistanceToPlayer(Player player) {
@@ -103,6 +116,9 @@ public class Chunk {
     }
 
     private void checkAndRebuild(World world) {
+        if (!isGenerated) {
+            return;
+        }
         if (needsRebuild) {
             rebuildMeshes(world);
             needsRebuild = false;
