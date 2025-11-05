@@ -16,7 +16,9 @@ public class Chunk {
     private int worldX, worldZ;
     private static final Random random = new Random();
 
-    private int displayListId = -1;
+    private int displayListIdOpaque = -1;
+    private int displayListIdTransparent = -1;
+
     private boolean needsRebuild = true;
 
     public Chunk(int chunkX, int chunkZ, World world, World.SimplexNoise noiseGen) {
@@ -36,7 +38,7 @@ public class Chunk {
 
                 double terrainNoise = noiseGen.noise(globalX * World.TERRAIN_SCALE, globalZ * World.TERRAIN_SCALE);
                 int surfaceHeight = (terrainNoise < 0) ?
-                        (World.BASE_Y + (int) (terrainNoise * 5.0)) :
+                        (World.BASE_Y + (int) (terrainNoise * 4.0)) :
                         (World.BASE_Y + (int) (terrainNoise * 20.0));
 
                 surfaceHeights[x][z] = surfaceHeight;
@@ -90,85 +92,94 @@ public class Chunk {
         this.needsRebuild = true;
     }
 
-    public Block getBlock(int x, int y, int z) {
-        if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z) {
-            return null;
-        }
-        return blocks[x][y][z];
+    public double getDistanceToPlayer(Player player) {
+        double chunkCenterX = (worldX * CHUNK_SIZE_X) + (CHUNK_SIZE_X / 2.0);
+        double chunkCenterZ = (worldZ * CHUNK_SIZE_Z) + (CHUNK_SIZE_Z / 2.0);
+
+        double dx = chunkCenterX - player.getX();
+        double dz = chunkCenterZ - player.getZ();
+
+        return dx * dx + dz * dz;
     }
 
-    public void setBlock(int x, int y, int z, Block block, boolean markDirty) {
-        if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z) {
-            return;
-        }
-        blocks[x][y][z] = block;
-        if (markDirty) {
-            this.needsRebuild = true;
-        }
-    }
-
-    public void markDirty() {
-        this.needsRebuild = true;
-    }
-
-    public void render(World world) {
+    private void checkAndRebuild(World world) {
         if (needsRebuild) {
-            rebuildMesh(world);
+            rebuildMeshes(world);
             needsRebuild = false;
         }
+    }
 
-        if (displayListId > -1) {
-            glCallList(displayListId);
+    public void renderOpaque(World world) {
+        checkAndRebuild(world);
+        if (displayListIdOpaque > -1) {
+            glCallList(displayListIdOpaque);
         }
     }
 
-    private void rebuildMesh(World world) {
-        if (displayListId > -1) {
-            glDeleteLists(displayListId, 1);
+    public void renderTransparent(World world) {
+        checkAndRebuild(world);
+        if (displayListIdTransparent > -1) {
+            glCallList(displayListIdTransparent);
+        }
+    }
+
+    private void rebuildMeshes(World world) {
+        if (displayListIdOpaque > -1) {
+            glDeleteLists(displayListIdOpaque, 1);
+        }
+        if (displayListIdTransparent > -1) {
+            glDeleteLists(displayListIdTransparent, 1);
         }
 
-        displayListId = glGenLists(1);
-        glNewList(displayListId, GL_COMPILE);
+        displayListIdOpaque = glGenLists(1);
+        glNewList(displayListIdOpaque, GL_COMPILE);
 
         glEnable(GL_TEXTURE_2D);
         glPushMatrix();
-
         glTranslatef(worldX * CHUNK_SIZE_X, 0, worldZ * CHUNK_SIZE_Z);
 
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
             for (int y = 0; y < CHUNK_SIZE_Y; y++) {
                 for (int z = 0; z < CHUNK_SIZE_Z; z++) {
                     Block currentBlock = blocks[x][y][z];
-                    if (currentBlock == null || currentBlock.isTransparent()) {
-                        continue;
+                    if (currentBlock != null && !currentBlock.isTransparent()) {
+                        renderBlockFaces(currentBlock, x, y, z, world);
                     }
-                    renderBlockFaces(currentBlock, x, y, z, world);
                 }
             }
         }
 
+        glPopMatrix();
+        glDisable(GL_TEXTURE_2D);
+        glEndList();
+
+        displayListIdTransparent = glGenLists(1);
+        glNewList(displayListIdTransparent, GL_COMPILE);
+
+        glEnable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glPushMatrix();
+        glTranslatef(worldX * CHUNK_SIZE_X, 0, worldZ * CHUNK_SIZE_Z);
 
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
             for (int y = 0; y < CHUNK_SIZE_Y; y++) {
                 for (int z = 0; z < CHUNK_SIZE_Z; z++) {
                     Block currentBlock = blocks[x][y][z];
-                    if (currentBlock == null || !currentBlock.isTransparent()) {
-                        continue;
+                    if (currentBlock != null && currentBlock.isTransparent()) {
+                        currentBlock.setTransparent(0.7f);
+                        renderBlockFaces(currentBlock, x, y, z, world);
+                        currentBlock.setOpaque();
                     }
-
-                    currentBlock.setTransparent(0.7f);
-                    renderBlockFaces(currentBlock, x, y, z, world);
-                    currentBlock.setOpaque();
                 }
             }
         }
 
-        glDisable(GL_BLEND);
-        glDisable(GL_TEXTURE_2D);
         glPopMatrix();
 
+        glDisable(GL_BLEND);
+        glDisable(GL_TEXTURE_2D);
         glEndList();
     }
 
@@ -264,5 +275,26 @@ public class Chunk {
             return false;
         }
         return !neighbor.isSolid();
+    }
+
+    public Block getBlock(int x, int y, int z) {
+        if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z) {
+            return null;
+        }
+        return blocks[x][y][z];
+    }
+
+    public void setBlock(int x, int y, int z, Block block, boolean markDirty) {
+        if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z) {
+            return;
+        }
+        blocks[x][y][z] = block;
+        if (markDirty) {
+            this.needsRebuild = true;
+        }
+    }
+
+    public void markDirty() {
+        this.needsRebuild = true;
     }
 }

@@ -1,8 +1,13 @@
 package com.minecraftai.engine;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+
+import static org.lwjgl.opengl.GL11.*;
 
 public class World {
     private Map<String, Chunk> chunks = new HashMap<>();
@@ -20,7 +25,6 @@ public class World {
 
     public Chunk getOrLoadChunk(int chunkX, int chunkZ) {
         String key = chunkX + "_" + chunkZ;
-
         return chunks.computeIfAbsent(key, k -> {
             return new Chunk(chunkX, chunkZ, this, noiseGen);
         });
@@ -30,12 +34,35 @@ public class World {
         int playerChunkX = (int) Math.floor(player.getX() / Chunk.CHUNK_SIZE_X);
         int playerChunkZ = (int) Math.floor(player.getZ() / Chunk.CHUNK_SIZE_Z);
 
+        List<Chunk> visibleChunks = new ArrayList<>();
         for (int x = playerChunkX - RENDER_DISTANCE; x <= playerChunkX + RENDER_DISTANCE; x++) {
             for (int z = playerChunkZ - RENDER_DISTANCE; z <= playerChunkZ + RENDER_DISTANCE; z++) {
-                Chunk chunk = getOrLoadChunk(x, z);
-                chunk.render(this);
+                visibleChunks.add(getOrLoadChunk(x, z));
             }
         }
+
+        glDisable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
+        glDepthMask(true);
+
+        for (Chunk chunk : visibleChunks) {
+            chunk.renderOpaque(this);
+        }
+
+        visibleChunks.sort((a, b) -> Double.compare(
+                b.getDistanceToPlayer(player),
+                a.getDistanceToPlayer(player)
+        ));
+
+        glEnable(GL_BLEND);
+        glDepthMask(false);
+
+        for (Chunk chunk : visibleChunks) {
+            chunk.renderTransparent(this);
+        }
+
+        glDepthMask(true);
+        glDisable(GL_BLEND);
     }
 
     public Block getBlockAt(int globalX, int globalY, int globalZ) {

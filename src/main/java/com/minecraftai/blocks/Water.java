@@ -10,7 +10,7 @@ public class Water extends Block {
         super(x, y, z);
         this.isTransparent = true;
         this.blockHeight = 0.875f;
-        this.isDestructible = false; // <-- DODAJ TĘ LINIĘ
+        this.isDestructible = false;
 
         if (texture == 0) {
             texture = TextureLoader.loadTexture("/assets/textures/block/water.png");
