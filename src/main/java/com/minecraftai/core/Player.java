@@ -10,6 +10,8 @@ import static org.lwjgl.opengl.GL11.*;
 
 public class Player {
     private float x, y, z;
+    private float prevX, prevY, prevZ; // Cache for physics interpolation
+    private boolean isSprinting = false;
     private float yaw, pitch;
     private final float speed = 0.07f; // Minecraft walking speed scaled for 60 Hz updates
     private float velocityY = 0;
@@ -34,6 +36,9 @@ public class Player {
         this.x = 0;
         this.y = 80;
         this.z = 0;
+        this.prevX = 0;
+        this.prevY = 80;
+        this.prevZ = 0;
         this.yaw = 0;
         this.pitch = 0;
     }
@@ -50,8 +55,20 @@ public class Player {
         }
     }
 
-    public void applyCameraTransform() {
-        float[] cam = getCameraLookAt();
+    public float getRenderX(float alpha) {
+        return prevX + (x - prevX) * alpha;
+    }
+
+    public float getRenderY(float alpha) {
+        return prevY + (y - prevY) * alpha;
+    }
+
+    public float getRenderZ(float alpha) {
+        return prevZ + (z - prevZ) * alpha;
+    }
+
+    public void applyCameraTransform(float alpha) {
+        float[] cam = getCameraLookAt(alpha);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         lookAt(cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], 0, 1, 0);
@@ -78,6 +95,10 @@ public class Player {
     }
 
     public void update(long window, double dt) {
+        prevX = x;
+        prevY = y;
+        prevZ = z;
+
         // 1. Obsługa niszczenia bloku (breakProgress)
         boolean isBreaking = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
         Block target = getTargetBlock(world, 4.5f);
@@ -122,7 +143,10 @@ public class Player {
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) inputX -= 1;
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) inputX += 1;
 
+        isSprinting = false;
         if (inputX != 0 || inputZ != 0) {
+            isSprinting = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && inputZ > 0;
+
             // Modyfikator prędkości zależny od kierunku (styl Minecraft)
             float speedMultiplier = 1.0f;
             if (inputZ < 0) {
@@ -131,6 +155,10 @@ public class Player {
                 speedMultiplier = 0.8f; // W bok (80% prędkości)
             } else if (inputZ > 0 && inputX != 0) {
                 speedMultiplier = 0.9f; // Diagonalnie w przód (90% prędkości)
+            }
+
+            if (isSprinting) {
+                speedMultiplier *= 1.3f; // Sprint w Minecraft
             }
 
             double radYaw = Math.toRadians(yaw);
@@ -232,19 +260,23 @@ public class Player {
         if (pitch < -MAX_PITCH) pitch = -MAX_PITCH;
     }
 
-    public float[] getCameraLookAt() {
+    public float[] getCameraLookAt(float alpha) {
         float radYaw = (float)Math.toRadians(yaw);
         float radPitch = (float)Math.toRadians(pitch);
         float dirX = (float)(Math.sin(radYaw) * Math.cos(radPitch));
         float dirY = (float)(Math.sin(radPitch));
         float dirZ = (float)(-Math.cos(radYaw) * Math.cos(radPitch));
-        float eyeX = x;
-        float eyeY = y + eyeHeight;
-        float eyeZ = z;
+        float eyeX = getRenderX(alpha);
+        float eyeY = getRenderY(alpha) + eyeHeight;
+        float eyeZ = getRenderZ(alpha);
         float lookX = eyeX + dirX;
         float lookY = eyeY + dirY;
         float lookZ = eyeZ + dirZ;
         return new float[]{eyeX, eyeY, eyeZ, lookX, lookY, lookZ};
+    }
+
+    public boolean isSprinting() {
+        return isSprinting;
     }
 
     public float getBreakProgress() {

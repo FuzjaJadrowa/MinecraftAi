@@ -28,6 +28,7 @@ public class Game {
     private double lastX, lastY;
 
     private Hotbar hotbar;
+    private float currentFov = 70.0f;
 
     public static void main(String[] args) {
         Game game = new Game();
@@ -145,7 +146,7 @@ public class Game {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             if (currentState == GameState.IN_GAME) {
-                renderGame();
+                renderGame((float) (accumulator / PHYSICS_STEP));
             } else {
                 renderMainMenu();
             }
@@ -155,7 +156,7 @@ public class Game {
         }
     }
 
-    private void renderGame() {
+    private void renderGame(float alpha) {
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         int[] width = new int[1];
@@ -163,9 +164,13 @@ public class Game {
         glfwGetFramebufferSize(window, width, height);
         float aspect = (float) width[0] / height[0];
         glViewport(0, 0, width[0], height[0]);
-        perspective(70.0f, aspect, 0.1f, 100.0f);
 
-        player.applyCameraTransform();
+        // Płynny efekt zmiany FOV podczas sprintu (Minecraft sprint FOV effect)
+        float targetFov = (player != null && player.isSprinting()) ? 78.0f : 70.0f;
+        currentFov += (targetFov - currentFov) * 0.15f;
+        perspective(currentFov, aspect, 0.1f, 100.0f);
+
+        player.applyCameraTransform(alpha);
         world.render(player);
         player.renderEntities();
 
