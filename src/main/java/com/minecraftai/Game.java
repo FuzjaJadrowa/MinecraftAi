@@ -115,15 +115,33 @@ public class Game {
     }
 
     private void mouseButtonCallback(long window, int button, int action, int mods) {
-        if (currentState == GameState.IN_GAME) {
-            player.handleInput(window);
-        } else if (currentState == GameState.MAIN_MENU) {
+        if (currentState == GameState.MAIN_MENU) {
             mainMenu.handleMouseClick(lastX, lastY, button, action);
         }
     }
 
     private void loop() {
+        double lastTime = glfwGetTime();
+        double accumulator = 0.0;
+        final double PHYSICS_STEP = 1.0 / 60.0; // Aktualizacja fizyki z częstotliwością 60 Hz
+
         while (!glfwWindowShouldClose(window)) {
+            double currentTime = glfwGetTime();
+            double deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            // Zabezpieczenie przed "spiral of death" w przypadku nagłego spadku klatek
+            if (deltaTime > 0.1) deltaTime = 0.1;
+
+            if (currentState == GameState.IN_GAME) {
+                accumulator += deltaTime;
+                while (accumulator >= PHYSICS_STEP) {
+                    player.handleInput(window);
+                    player.update(window, PHYSICS_STEP);
+                    accumulator -= PHYSICS_STEP;
+                }
+            }
+
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             if (currentState == GameState.IN_GAME) {
@@ -148,14 +166,101 @@ public class Game {
         perspective(70.0f, aspect, 0.1f, 100.0f);
 
         player.applyCameraTransform();
-        player.handleInput(window);
-        player.update(window);
         world.render(player);
         player.renderEntities();
+
+        // Rysowanie ramki zaznaczenia i nakładki pękania bloku
+        renderBreakingBlockOverlay();
 
         if (hotbar != null) {
             hotbar.render(window);
         }
+    }
+
+    private void renderBreakingBlockOverlay() {
+        Block target = player.getCurrentTargetBlock();
+        float progress = player.getBreakProgress();
+        if (target == null) return;
+
+        int bx = target.getX();
+        int by = target.getY();
+        int bz = target.getZ();
+        float h = target.getBlockHeight();
+
+        // Renderowanie linii zaznaczenia i nakładki z-fighting
+        glDisable(GL_LIGHTING);
+        glDisable(GL_TEXTURE_2D);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        // 1. Nakładka pękania (stopniowo ciemniejący czarny sześcian)
+        if (progress > 0.0f) {
+            glColor4f(0.0f, 0.0f, 0.0f, progress * 0.7f); // max 70% czerni
+            glBegin(GL_QUADS);
+            // GÓRA (TOP) z lekkim offsetem 0.002f dla uniknięcia z-fighting
+            glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
+            glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
+            glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
+            glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
+
+            // DÓŁ (BOTTOM)
+            glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
+            glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
+            glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
+            glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
+
+            // WSCHÓD (EAST)
+            glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
+            glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
+            glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
+            glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
+
+            // ZACHÓD (WEST)
+            glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
+            glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
+            glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
+            glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
+
+            // PÓŁNOC (NORTH)
+            glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
+            glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
+            glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
+            glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
+
+            // POŁUDNIE (SOUTH)
+            glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
+            glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
+            glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
+            glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
+            glEnd();
+        }
+
+        // 2. Kontur zaznaczonego bloku (czarne cienkie linie)
+        glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
+        glLineWidth(2.0f);
+        glBegin(GL_LINES);
+        // Dolny kwadrat
+        glVertex3f(bx, by, bz); glVertex3f(bx + 1, by, bz);
+        glVertex3f(bx + 1, by, bz); glVertex3f(bx + 1, by, bz + 1);
+        glVertex3f(bx + 1, by, bz + 1); glVertex3f(bx, by, bz + 1);
+        glVertex3f(bx, by, bz + 1); glVertex3f(bx, by, bz);
+        // Górny kwadrat
+        glVertex3f(bx, by + h, bz); glVertex3f(bx + 1, by + h, bz);
+        glVertex3f(bx + 1, by + h, bz); glVertex3f(bx + 1, by + h, bz + 1);
+        glVertex3f(bx + 1, by + h, bz + 1); glVertex3f(bx, by + h, bz + 1);
+        glVertex3f(bx, by + h, bz + 1); glVertex3f(bx, by + h, bz);
+        // Pionowe słupki
+        glVertex3f(bx, by, bz); glVertex3f(bx, by + h, bz);
+        glVertex3f(bx + 1, by, bz); glVertex3f(bx + 1, by + h, bz);
+        glVertex3f(bx + 1, by, bz + 1); glVertex3f(bx + 1, by + h, bz + 1);
+        glVertex3f(bx, by, bz + 1); glVertex3f(bx, by + h, bz + 1);
+        glEnd();
+        glLineWidth(1.0f);
+
+        glDisable(GL_BLEND);
+        glEnable(GL_LIGHTING);
+        glEnable(GL_TEXTURE_2D);
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     private void renderMainMenu() {

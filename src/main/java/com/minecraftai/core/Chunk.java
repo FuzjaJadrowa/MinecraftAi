@@ -28,7 +28,7 @@ public class Chunk {
         this.worldZ = chunkZ;
     }
 
-    public void generate(World world, World.SimplexNoise noiseGen) {
+    public void generate(World world) {
         if (isGenerated) {
             return;
         }
@@ -44,16 +44,20 @@ public class Chunk {
                 int globalX = startX + x;
                 int globalZ = startZ + z;
 
-                double terrainNoise = noiseGen.noise(globalX * World.TERRAIN_SCALE, globalZ * World.TERRAIN_SCALE);
-                int surfaceHeight = (terrainNoise < 0) ?
-                        (World.BASE_Y + (int) (terrainNoise * 4.0)) :
-                        (World.BASE_Y + (int) (terrainNoise * 20.0));
+                double terrainNoise = world.getTerrainNoise(globalX, globalZ);
+                int surfaceHeight;
+                if (terrainNoise < 0) {
+                    surfaceHeight = World.BASE_Y + (int) (terrainNoise * 14.0);
+                } else {
+                    double hillNoise = Math.pow(terrainNoise, 1.5) * 44.0;
+                    surfaceHeight = World.BASE_Y + (int) hillNoise;
+                }
 
                 surfaceHeights[x][z] = surfaceHeight;
 
                 for (int y = 0; y < CHUNK_SIZE_Y; y++) {
                     if (y > surfaceHeight) {
-                        if (y <= World.WATER_LEVEL && surfaceHeight < World.WATER_LEVEL - 1) {
+                        if (y <= World.WATER_LEVEL) {
                             setBlock(x, y, z, new Water(globalX, y, globalZ), false);
                         } else {
                             blocks[x][y][z] = null;
@@ -61,8 +65,18 @@ public class Chunk {
                         continue;
                     }
 
+                    // Bedrock na samym dole mapy (niezniszczalny)
+                    if (y == 0) {
+                        setBlock(x, y, z, new Bedrock(globalX, y, globalZ), false);
+                        continue;
+                    }
+                    if (y < 4 && random.nextInt(y + 1) == 0) {
+                        setBlock(x, y, z, new Bedrock(globalX, y, globalZ), false);
+                        continue;
+                    }
+
                     if (y < World.BASE_Y - 5) {
-                        double caveNoise = noiseGen.noise(globalX * World.CAVE_SCALE, y * World.CAVE_SCALE * 2.0, globalZ * World.CAVE_SCALE);
+                        double caveNoise = world.getCaveNoise(globalX, y, globalZ);
                         if (caveNoise > 0.65) {
                             blocks[x][y][z] = null;
                             continue;
@@ -276,9 +290,6 @@ public class Chunk {
             return true;
         }
         if (neighbor.isTransparent() && !current.isTransparent()) {
-            return true;
-        }
-        if (current.isTransparent() && neighbor.isSolid()) {
             return true;
         }
         if (current.isTransparent() && neighbor.isTransparent()) {

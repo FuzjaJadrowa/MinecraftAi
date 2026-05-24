@@ -58,6 +58,10 @@ public abstract class Block {
         return isDestructible;
     }
 
+    public float getBlockHeight() {
+        return blockHeight;
+    }
+
     public void setTransparent(float alpha) {
         glColor4f(1.0f, 1.0f, 1.0f, alpha);
     }

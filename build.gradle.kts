@@ -38,12 +38,12 @@ dependencies {
 }
 
 application {
-    mainClass.set("com.minecraftai.Main")
+    mainClass.set("com.minecraftai.Game")
 }
 
 tasks.jar {
     manifest {
-        attributes["Main-Class"] = "com.minecraftai.Main"
+        attributes["Main-Class"] = "com.minecraftai.Game"
     }
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE

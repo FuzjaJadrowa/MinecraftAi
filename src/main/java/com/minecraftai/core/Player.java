@@ -11,13 +11,11 @@ import static org.lwjgl.opengl.GL11.*;
 public class Player {
     private float x, y, z;
     private float yaw, pitch;
-    private final float speed = 0.02f;
+    private final float speed = 0.07f; // Minecraft walking speed scaled for 60 Hz updates
     private float velocityY = 0;
-    private final float gravity = 0.0005f;
-    private final float jumpStrength = 0.04f;
+    private final float gravity = 0.008f; // Minecraft gravity scaled for 60 Hz updates
+    private final float jumpStrength = 0.14f; // Minecraft jump velocity scaled for 60 Hz updates
     private final float eyeHeight = 1.7f;
-    private long lastBlockBreakTime = 0;
-    private final long blockBreakCooldown = 200_000_000L;
     private long lastBlockPlaceTime = 0;
     private final long blockPlaceCooldown = 200_000_000L;
     private CopperGolem copperGolem;
@@ -25,6 +23,11 @@ public class Player {
 
     private int selectedSlot = 0;
     private ItemStack[] inventory = new ItemStack[9];
+
+    // System niszczenia bloków (postęp, twardość, namierzanie)
+    private int targetX, targetY, targetZ;
+    private float breakProgress = 0.0f;
+    private Block currentTargetBlock = null;
 
     public Player(World world) {
         this.world = world;
@@ -38,9 +41,6 @@ public class Player {
     public void handleInput(long window) {
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
             tryPlaceBlock(world);
-        }
-        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
-            tryBreakBlock(world);
         }
         if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && copperGolem == null) {
             float spawnX = x + 2;
@@ -77,46 +77,117 @@ public class Player {
         glTranslatef(-eyeX, -eyeY, -eyeZ);
     }
 
-    public void update(long window) {
+    public void update(long window, double dt) {
+        // 1. Obsługa niszczenia bloku (breakProgress)
+        boolean isBreaking = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+        Block target = getTargetBlock(world, 4.5f);
+
+        if (isBreaking && target != null) {
+            if (currentTargetBlock != null &&
+                    target.getX() == targetX &&
+                    target.getY() == targetY &&
+                    target.getZ() == targetZ) {
+
+                float speedVal = getBreakSpeed(target);
+                breakProgress += dt * speedVal;
+
+                if (breakProgress >= 1.0f) {
+                    world.removeBlock(targetX, targetY, targetZ);
+                    ItemType drop = target.getItemDrop();
+                    if (drop != null) {
+                        addItem(drop);
+                    }
+                    breakProgress = 0.0f;
+                    currentTargetBlock = null;
+                }
+            } else {
+                currentTargetBlock = target;
+                targetX = target.getX();
+                targetY = target.getY();
+                targetZ = target.getZ();
+                breakProgress = 0.0f;
+            }
+        } else {
+            breakProgress = 0.0f;
+            currentTargetBlock = null;
+        }
+
+        // 2. Obsługa poruszania się (fizyka, kierunki, slizganie)
         float dx = 0, dz = 0;
+        float inputX = 0;
+        float inputZ = 0;
 
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-            dx += (float) Math.sin(Math.toRadians(yaw)) * speed;
-            dz -= (float) Math.cos(Math.toRadians(yaw)) * speed;
-        }
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-            dx -= (float) Math.sin(Math.toRadians(yaw)) * speed;
-            dz += (float) Math.cos(Math.toRadians(yaw)) * speed;
-        }
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-            dx -= (float) Math.cos(Math.toRadians(yaw)) * speed;
-            dz -= (float) Math.sin(Math.toRadians(yaw)) * speed;
-        }
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-            dx += (float) Math.cos(Math.toRadians(yaw)) * speed;
-            dz += (float) Math.sin(Math.toRadians(yaw)) * speed;
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) inputZ += 1;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) inputZ -= 1;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) inputX -= 1;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) inputX += 1;
+
+        if (inputX != 0 || inputZ != 0) {
+            // Modyfikator prędkości zależny od kierunku (styl Minecraft)
+            float speedMultiplier = 1.0f;
+            if (inputZ < 0) {
+                speedMultiplier = 0.6f; // W tył (60% prędkości)
+            } else if (inputZ == 0 && inputX != 0) {
+                speedMultiplier = 0.8f; // W bok (80% prędkości)
+            } else if (inputZ > 0 && inputX != 0) {
+                speedMultiplier = 0.9f; // Diagonalnie w przód (90% prędkości)
+            }
+
+            double radYaw = Math.toRadians(yaw);
+            double sin = Math.sin(radYaw);
+            double cos = Math.cos(radYaw);
+
+            // Normalizacja wektora wejściowego ruchu i transformacja na świat
+            float length = (float) Math.sqrt(inputX * inputX + inputZ * inputZ);
+            float nx = inputX / length;
+            float nz = inputZ / length;
+
+            dx = (float) (nx * cos + nz * sin) * speed * speedMultiplier;
+            dz = (float) (nx * sin - nz * cos) * speed * speedMultiplier;
         }
 
-        if (!collides(x + dx, y, z + dz)) {
+        // Ślizganie się po ścianach (niezależne kolizje X i Z)
+        if (!collides(x + dx, y, z)) {
             x += dx;
+        }
+        if (!collides(x, y, z + dz)) {
             z += dz;
         }
 
+        // Grawitacja i skok
         velocityY -= gravity;
         float nextY = y + velocityY;
 
         if (velocityY > 0 && collides(x, nextY, z)) {
             velocityY = 0;
-        }
-
-        else if (velocityY < 0 && collides(x, nextY, z)) {
+        } else if (velocityY < 0 && collides(x, nextY, z)) {
             velocityY = 0;
             y = (float) Math.floor(nextY) + 1.0f;
         } else {
             y = nextY;
         }
+
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && onGround()) {
             velocityY = jumpStrength;
+        }
+    }
+
+    private float getBreakSpeed(Block target) {
+        if (!target.isDestructible()) return 0.0f;
+        String name = target.getClass().getSimpleName();
+        switch (name) {
+            case "Leaves":
+                return 5.0f; // 0.2 sekundy
+            case "GrassBlock":
+            case "Dirt":
+                return 2.0f; // 0.5 sekundy
+            case "Log":
+                return 1.25f; // 0.8 sekundy
+            case "Stone":
+            case "Cobblestone":
+                return 0.7f; // 1.4 sekundy
+            default:
+                return 1.0f; // 1.0 sekunda
         }
     }
 
@@ -176,6 +247,14 @@ public class Player {
         return new float[]{eyeX, eyeY, eyeZ, lookX, lookY, lookZ};
     }
 
+    public float getBreakProgress() {
+        return breakProgress;
+    }
+
+    public Block getCurrentTargetBlock() {
+        return currentTargetBlock;
+    }
+
     public void addItem(ItemType itemType) {
         if (itemType == null) return;
 
@@ -191,28 +270,6 @@ public class Player {
             if (inventory[i] == null) {
                 inventory[i] = new ItemStack(itemType, 1);
                 return;
-            }
-        }
-    }
-
-    public void tryBreakBlock(World world) {
-        long now = System.nanoTime();
-        if (now - lastBlockBreakTime < blockBreakCooldown) return;
-
-        Block target = getTargetBlock(world, 3f);
-
-        if (target != null) {
-            if (!target.isDestructible()) {
-                return;
-            }
-
-            ItemType drop = target.getItemDrop();
-
-            world.removeBlock(target.getX(), target.getY(), target.getZ());
-            lastBlockBreakTime = now;
-
-            if (drop != null) {
-                addItem(drop);
             }
         }
     }

@@ -18,7 +18,8 @@ public class TextureAtlas {
         "/assets/textures/block/log.png",          // 4
         "/assets/textures/block/log_top.png",      // 5
         "/assets/textures/block/leaves.png",       // 6
-        "/assets/textures/block/water.png"         // 7
+        "/assets/textures/block/water.png",        // 7
+        "/assets/textures/block/bedrock.png"       // 8
     };
 
     private static int atlasTextureID = 0;
