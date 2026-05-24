@@ -1,4 +1,4 @@
-package com.minecraftai.engine;
+package com.minecraftai.core;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;

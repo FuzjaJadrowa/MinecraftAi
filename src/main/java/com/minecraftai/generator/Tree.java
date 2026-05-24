@@ -2,9 +2,8 @@ package com.minecraftai.generator;
 
 import com.minecraftai.blocks.Leaves;
 import com.minecraftai.blocks.Log;
-import com.minecraftai.engine.Block;
-import com.minecraftai.engine.Chunk;
-import com.minecraftai.engine.World;
+import com.minecraftai.core.Chunk;
+import com.minecraftai.core.World;
 
 import java.util.Random;
 

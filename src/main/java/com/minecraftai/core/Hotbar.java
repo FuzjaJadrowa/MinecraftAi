@@ -1,7 +1,4 @@
-package com.minecraftai.engine;
-
-import com.minecraftai.engine.ItemStack;
-import com.minecraftai.engine.ItemType;
+package com.minecraftai.core;
 
 import static org.lwjgl.glfw.GLFW.glfwGetFramebufferSize;
 import static org.lwjgl.opengl.GL11.*;

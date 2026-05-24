@@ -1,4 +1,4 @@
-package com.minecraftai.engine;
+package com.minecraftai.core;
 
 import com.minecraftai.blocks.*;
 import com.minecraftai.generator.Tree;
@@ -151,19 +151,22 @@ public class Chunk {
         glNewList(displayListIdOpaque, GL_COMPILE);
 
         glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, TextureAtlas.getAtlasTextureID());
         glPushMatrix();
         glTranslatef(worldX * CHUNK_SIZE_X, 0, worldZ * CHUNK_SIZE_Z);
 
+        glBegin(GL_QUADS);
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
             for (int y = 0; y < CHUNK_SIZE_Y; y++) {
                 for (int z = 0; z < CHUNK_SIZE_Z; z++) {
                     Block currentBlock = blocks[x][y][z];
                     if (currentBlock != null && !currentBlock.isTransparent()) {
-                        renderBlockFaces(currentBlock, x, y, z, world);
+                        renderBlockFacesBatched(currentBlock, x, y, z, world);
                     }
                 }
             }
         }
+        glEnd();
 
         glPopMatrix();
         glDisable(GL_TEXTURE_2D);
@@ -175,22 +178,25 @@ public class Chunk {
         glEnable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glBindTexture(GL_TEXTURE_2D, TextureAtlas.getAtlasTextureID());
 
         glPushMatrix();
         glTranslatef(worldX * CHUNK_SIZE_X, 0, worldZ * CHUNK_SIZE_Z);
 
+        glColor4f(1.0f, 1.0f, 1.0f, 0.7f); // Water transparency
+        glBegin(GL_QUADS);
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
             for (int y = 0; y < CHUNK_SIZE_Y; y++) {
                 for (int z = 0; z < CHUNK_SIZE_Z; z++) {
                     Block currentBlock = blocks[x][y][z];
                     if (currentBlock != null && currentBlock.isTransparent()) {
-                        currentBlock.setTransparent(0.7f);
-                        renderBlockFaces(currentBlock, x, y, z, world);
-                        currentBlock.setOpaque();
+                        renderBlockFacesBatched(currentBlock, x, y, z, world);
                     }
                 }
             }
         }
+        glEnd();
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f); // Reset color
 
         glPopMatrix();
 
@@ -199,81 +205,69 @@ public class Chunk {
         glEndList();
     }
 
-    private void renderBlockFaces(Block current, int x, int y, int z, World world) {
+    private void renderBlockFacesBatched(Block current, int x, int y, int z, World world) {
         int globalX = worldX * CHUNK_SIZE_X + x;
         int globalZ = worldZ * CHUNK_SIZE_Z + z;
         float h = current.blockHeight;
 
         Block neighbor = (y + 1 >= CHUNK_SIZE_Y) ? null : blocks[x][y + 1][z];
         if (shouldRenderFace(current, neighbor)) {
-            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.TOP));
-            glBegin(GL_QUADS);
+            float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.TOP));
             glNormal3f(0, 1, 0);
-            glTexCoord2f(0, 0); glVertex3f(x, y + h, z);
-            glTexCoord2f(1, 0); glVertex3f(x + 1, y + h, z);
-            glTexCoord2f(1, 1); glVertex3f(x + 1, y + h, z + 1);
-            glTexCoord2f(0, 1); glVertex3f(x, y + h, z + 1);
-            glEnd();
+            glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y + h, z);
+            glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y + h, z);
+            glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
+            glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z + 1);
         }
 
         neighbor = (y - 1 < 0) ? null : blocks[x][y - 1][z];
         if (shouldRenderFace(current, neighbor)) {
-            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.BOTTOM));
-            glBegin(GL_QUADS);
+            float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.BOTTOM));
             glNormal3f(0, -1, 0);
-            glTexCoord2f(0, 0); glVertex3f(x, y, z);
-            glTexCoord2f(1, 0); glVertex3f(x + 1, y, z);
-            glTexCoord2f(1, 1); glVertex3f(x + 1, y, z + 1);
-            glTexCoord2f(0, 1); glVertex3f(x, y, z + 1);
-            glEnd();
+            glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
+            glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z);
+            glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y, z + 1);
+            glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y, z + 1);
         }
 
         neighbor = (x + 1 >= CHUNK_SIZE_X) ? world.getBlockAt(globalX + 1, y, globalZ) : blocks[x + 1][y][z];
         if (shouldRenderFace(current, neighbor)) {
-            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.EAST));
-            glBegin(GL_QUADS);
+            float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.EAST));
             glNormal3f(1, 0, 0);
-            glTexCoord2f(0, 0); glVertex3f(x + 1, y, z);
-            glTexCoord2f(1, 0); glVertex3f(x + 1, y, z + 1);
-            glTexCoord2f(1, 1); glVertex3f(x + 1, y + h, z + 1);
-            glTexCoord2f(0, 1); glVertex3f(x + 1, y + h, z);
-            glEnd();
+            glTexCoord2f(uv[0], uv[1]); glVertex3f(x + 1, y, z);
+            glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z + 1);
+            glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
+            glTexCoord2f(uv[0], uv[3]); glVertex3f(x + 1, y + h, z);
         }
 
         neighbor = (x - 1 < 0) ? world.getBlockAt(globalX - 1, y, globalZ) : blocks[x - 1][y][z];
         if (shouldRenderFace(current, neighbor)) {
-            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.WEST));
-            glBegin(GL_QUADS);
+            float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.WEST));
             glNormal3f(-1, 0, 0);
-            glTexCoord2f(0, 0); glVertex3f(x, y, z);
-            glTexCoord2f(1, 0); glVertex3f(x, y, z + 1);
-            glTexCoord2f(1, 1); glVertex3f(x, y + h, z + 1);
-            glTexCoord2f(0, 1); glVertex3f(x, y + h, z);
-            glEnd();
+            glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
+            glTexCoord2f(uv[2], uv[1]); glVertex3f(x, y, z + 1);
+            glTexCoord2f(uv[2], uv[3]); glVertex3f(x, y + h, z + 1);
+            glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z);
         }
 
         neighbor = (z + 1 >= CHUNK_SIZE_Z) ? world.getBlockAt(globalX, y, globalZ + 1) : blocks[x][y][z + 1];
         if (shouldRenderFace(current, neighbor)) {
-            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.NORTH));
-            glBegin(GL_QUADS);
+            float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.NORTH));
             glNormal3f(0, 0, 1);
-            glTexCoord2f(0, 0); glVertex3f(x, y, z + 1);
-            glTexCoord2f(1, 0); glVertex3f(x + 1, y, z + 1);
-            glTexCoord2f(1, 1); glVertex3f(x + 1, y + h, z + 1);
-            glTexCoord2f(0, 1); glVertex3f(x, y + h, z + 1);
-            glEnd();
+            glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z + 1);
+            glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z + 1);
+            glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
+            glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z + 1);
         }
 
         neighbor = (z - 1 < 0) ? world.getBlockAt(globalX, y, globalZ - 1) : blocks[x][y][z - 1];
         if (shouldRenderFace(current, neighbor)) {
-            glBindTexture(GL_TEXTURE_2D, current.getTextureID(Block.Face.SOUTH));
-            glBegin(GL_QUADS);
+            float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.SOUTH));
             glNormal3f(0, 0, -1);
-            glTexCoord2f(0, 0); glVertex3f(x, y, z);
-            glTexCoord2f(1, 0); glVertex3f(x + 1, y, z);
-            glTexCoord2f(1, 1); glVertex3f(x + 1, y + h, z);
-            glTexCoord2f(0, 1); glVertex3f(x, y + h, z);
-            glEnd();
+            glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
+            glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z);
+            glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z);
+            glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z);
         }
     }
 

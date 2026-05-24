@@ -1,14 +1,11 @@
-package com.minecraftai.engine;
+package com.minecraftai.core;
 
 import static org.lwjgl.opengl.GL11.*;
-
-import com.minecraftai.engine.ItemType;
 
 public abstract class Block {
     protected int x, y, z;
     protected float blockHeight = 1.0f;
     protected boolean isTransparent = false;
-
     protected boolean isDestructible = true;
 
     public enum Face { TOP, BOTTOM, NORTH, SOUTH, EAST, WEST }
@@ -20,7 +17,7 @@ public abstract class Block {
     public int getX() { return x; }
     public int getY() { return y; }
     public int getZ() { return z; }
-    public abstract int getTextureID(Face face);
+    public abstract int getTextureIndex(Face face);
 
     public abstract ItemType getItemDrop();
 

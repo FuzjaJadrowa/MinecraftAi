@@ -1,4 +1,4 @@
-package com.minecraftai.engine;
+package com.minecraftai.core;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +58,7 @@ public class World {
         visibleChunks.sort((a, b) -> Double.compare(
                 b.getDistanceToPlayer(player),
                 a.getDistanceToPlayer(player)
-        ));
+            ));
 
         glEnable(GL_BLEND);
         glDepthMask(false);

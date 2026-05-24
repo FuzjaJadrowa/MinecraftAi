@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.minecraftai"
-version = "1.1"
+version = "1.2"
 
 repositories {
     mavenCentral()
@@ -48,7 +48,11 @@ tasks.jar {
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
-    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+    from(configurations.runtimeClasspath.map { files ->
+        files.map { if (it.isDirectory) it else zipTree(it) }
+    }) {
+        exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+    }
 }
 
 java {

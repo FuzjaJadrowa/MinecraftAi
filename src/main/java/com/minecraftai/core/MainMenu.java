@@ -1,4 +1,6 @@
-package com.minecraftai.engine;
+package com.minecraftai.core;
+
+import com.minecraftai.Game;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;

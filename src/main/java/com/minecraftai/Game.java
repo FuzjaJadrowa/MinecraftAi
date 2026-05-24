@@ -1,5 +1,6 @@
-package com.minecraftai.engine;
+package com.minecraftai;
 
+import com.minecraftai.core.*;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.opengl.GL;
@@ -27,6 +28,11 @@ public class Game {
     private double lastX, lastY;
 
     private Hotbar hotbar;
+
+    public static void main(String[] args) {
+        Game game = new Game();
+        game.run();
+    }
 
     public void run() {
         init();
@@ -56,6 +62,9 @@ public class Game {
         glfwShowWindow(window);
         GL.createCapabilities();
 
+        // Initialize our optimized Texture Atlas
+        TextureAtlas.init();
+
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_LIGHTING);
         glEnable(GL_LIGHT0);
@@ -73,7 +82,6 @@ public class Game {
         FontRenderer.initFont();
         currentState = GameState.MAIN_MENU;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-
     }
 
     private void keyCallback(long window, int key, int scancode, int action, int mods) {

@@ -1,29 +1,20 @@
 package com.minecraftai.blocks;
 
-import com.minecraftai.engine.Block;
-import com.minecraftai.engine.ItemType;
-import com.minecraftai.engine.TextureLoader;
+import com.minecraftai.core.Block;
+import com.minecraftai.core.ItemType;
 
 public class GrassBlock extends Block {
-    private static int grassTexture;
-    private static int dirtTexture;
-
     public GrassBlock(int x, int y, int z) {
         super(x, y, z);
-
-        if (grassTexture == 0) {
-            grassTexture = TextureLoader.loadTexture("/assets/textures/block/grass.png");
-            dirtTexture = TextureLoader.loadTexture("/assets/textures/block/dirt.png");
-        }
     }
 
     @Override
-    public int getTextureID(Face face) {
+    public int getTextureIndex(Face face) {
         switch (face) {
             case TOP:
-                return grassTexture;
+                return 0;
             default:
-                return dirtTexture;
+                return 1;
         }
     }
 

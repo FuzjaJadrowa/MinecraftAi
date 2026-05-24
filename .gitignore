@@ -2,22 +2,14 @@
 build/
 .idea/
 !gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
+!**/src/game/**/build/
 !**/src/test/**/build/
-
-### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
 *.iws
 *.iml
 *.ipr
 out/
-!**/src/main/**/out/
+!**/src/game/**/out/
 !**/src/test/**/out/
-
-### Eclipse ###
 .apt_generated
 .classpath
 .factorypath
@@ -26,18 +18,12 @@ out/
 .springBeans
 .sts4-cache
 bin/
-!**/src/main/**/bin/
+!**/src/game/**/bin/
 !**/src/test/**/bin/
-
-### NetBeans ###
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
-
-### VS Code ###
 .vscode/
-
-### Mac OS ###
 .DS_Store

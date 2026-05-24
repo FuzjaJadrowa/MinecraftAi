@@ -1,4 +1,4 @@
-package com.minecraftai.engine;
+package com.minecraftai.core;
 
 public enum ItemType {
     DIRT,

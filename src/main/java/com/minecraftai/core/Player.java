@@ -1,10 +1,8 @@
-package com.minecraftai.engine;
+package com.minecraftai.core;
 
 import com.minecraftai.blocks.Cobblestone;
 import com.minecraftai.blocks.Dirt;
 import com.minecraftai.blocks.Log;
-import com.minecraftai.engine.ItemStack;
-import com.minecraftai.engine.ItemType;
 import com.minecraftai.entity.CopperGolem;
 
 import static org.lwjgl.glfw.GLFW.*;
