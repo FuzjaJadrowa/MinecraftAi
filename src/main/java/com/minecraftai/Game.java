@@ -1,6 +1,7 @@
 package com.minecraftai;
 
 import com.minecraftai.core.*;
+import com.minecraftai.gui.*;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.opengl.GL;
@@ -15,19 +16,22 @@ import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class Game {
-    private enum GameState {
+    public enum GameState {
         MAIN_MENU,
-        IN_GAME
+        IN_GAME,
+        INVENTORY,
+        DEATH
     }
 
     private long window;
     private Player player;
     private World world;
     private MainMenu mainMenu;
+    private Hotbar hotbar;
+    private InventoryMenu inventoryMenu;
+    private DeathMenu deathMenu;
     private GameState currentState;
     private double lastX, lastY;
-
-    private Hotbar hotbar;
     private float currentFov = 70.0f;
     private int cameraMode = 0;
     private float lastDeltaTime = 0.016f;
@@ -96,19 +100,35 @@ public class Game {
                 pauseGame();
             } else if (currentState == GameState.MAIN_MENU && player != null) {
                 resumeGame();
+            } else if (currentState == GameState.INVENTORY) {
+                inventoryMenu.onClose();
+                currentState = GameState.IN_GAME;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             }
         }
 
-        if (currentState == GameState.IN_GAME && action == GLFW_PRESS) {
-            if (key == GLFW_KEY_F3) {
-                showDebug = !showDebug;
-            }
-            if (key == GLFW_KEY_F5) {
-                cameraMode = (cameraMode + 1) % 3;
-            }
-            if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9) {
-                int slotIndex = key - GLFW_KEY_1;
-                player.setSelectedSlot(slotIndex);
+        if (action == GLFW_PRESS) {
+            if (currentState == GameState.IN_GAME) {
+                if (key == GLFW_KEY_F3) {
+                    showDebug = !showDebug;
+                }
+                if (key == GLFW_KEY_F5) {
+                    cameraMode = (cameraMode + 1) % 3;
+                }
+                if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9) {
+                    int slotIndex = key - GLFW_KEY_1;
+                    player.setSelectedSlot(slotIndex);
+                }
+                if (key == GLFW_KEY_E) {
+                    currentState = GameState.INVENTORY;
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                }
+            } else if (currentState == GameState.INVENTORY) {
+                if (key == GLFW_KEY_E) {
+                    inventoryMenu.onClose();
+                    currentState = GameState.IN_GAME;
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                }
             }
         }
     }
@@ -123,12 +143,20 @@ public class Game {
             player.addRotation((float) dx, (float) dy);
         } else if (currentState == GameState.MAIN_MENU) {
             mainMenu.handleMouseMove(xpos, ypos);
+        } else if (currentState == GameState.INVENTORY) {
+            inventoryMenu.handleMouseMove(xpos, ypos);
+        } else if (currentState == GameState.DEATH) {
+            deathMenu.handleMouseMove(xpos, ypos);
         }
     }
 
     private void mouseButtonCallback(long window, int button, int action, int mods) {
         if (currentState == GameState.MAIN_MENU) {
             mainMenu.handleMouseClick(lastX, lastY, button, action);
+        } else if (currentState == GameState.INVENTORY) {
+            inventoryMenu.handleMouseClick(lastX, lastY, button, action);
+        } else if (currentState == GameState.DEATH) {
+            deathMenu.handleMouseClick(lastX, lastY, button, action);
         }
     }
 
@@ -162,12 +190,22 @@ public class Game {
                     world.updateDroppedItems((float) PHYSICS_STEP, player);
                     accumulator -= PHYSICS_STEP;
                 }
+                if (player.isDead()) {
+                    currentState = GameState.DEATH;
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                }
             }
 
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             if (currentState == GameState.IN_GAME) {
                 renderGame((float) (accumulator / PHYSICS_STEP));
+            } else if (currentState == GameState.INVENTORY) {
+                renderGame(1.0f);
+                inventoryMenu.render(window);
+            } else if (currentState == GameState.DEATH) {
+                renderGame(1.0f);
+                deathMenu.render(window);
             } else {
                 renderMainMenu();
             }
@@ -294,6 +332,12 @@ public class Game {
 
             hotbar = new Hotbar(player);
             hotbar.init();
+
+            inventoryMenu = new InventoryMenu(player);
+            inventoryMenu.init();
+
+            deathMenu = new DeathMenu(this, player);
+            deathMenu.init();
         }
         resumeGame();
     }

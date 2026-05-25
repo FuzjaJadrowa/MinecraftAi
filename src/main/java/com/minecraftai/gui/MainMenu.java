@@ -1,6 +1,9 @@
-package com.minecraftai.core;
+package com.minecraftai.gui;
 
 import com.minecraftai.Game;
+import com.minecraftai.core.FontRenderer;
+import com.minecraftai.core.TextureLoader;
+import com.minecraftai.core.World;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -8,10 +11,13 @@ import static org.lwjgl.opengl.GL11.*;
 public class MainMenu {
     private static final String BACKGROUND_PATH = "/assets/textures/misc/background.png";
     private static final String LOGO_PATH = "/assets/textures/misc/logo.png";
+    private static final String BUTTON_PATH = "/assets/textures/gui/button.png";
 
     private Game game;
     private int backgroundTextureID;
     private int logoTextureID;
+    private int buttonTextureID;
+
     private final float[] playButtonRect = { 1280 / 2 - 150, 350, 300, 60 };
     private final float[] quitButtonRect = { 1280 / 2 - 150, 450, 300, 60 };
 
@@ -22,11 +28,11 @@ public class MainMenu {
     private boolean isPlayHovered = false;
     private boolean isQuitHovered = false;
 
-
     public MainMenu(Game game) {
         this.game = game;
         this.backgroundTextureID = TextureLoader.loadTexture(BACKGROUND_PATH);
         this.logoTextureID = TextureLoader.loadTexture(LOGO_PATH);
+        this.buttonTextureID = TextureLoader.loadTexture(BUTTON_PATH);
     }
 
     public void handleMouseMove(double x, double y) {
@@ -64,11 +70,9 @@ public class MainMenu {
         float sliderWidth = sliderRect[2];
 
         float relativeX = Math.max(0, Math.min((float)mouseX - sliderX, sliderWidth));
-
         float percentage = relativeX / sliderWidth;
 
         int newValue = 2 + Math.round(percentage * 30);
-
         World.RENDER_DISTANCE = newValue;
     }
 
@@ -79,10 +83,12 @@ public class MainMenu {
         glfwGetFramebufferSize(game.getWindowHandle(), w, h);
         float currentW = w[0];
         float currentH = h[0];
+
         float logoWidth = 512;
         float logoHeight = 128;
         float logoX = (currentW - logoWidth) / 2;
         float logoY = currentH * 0.15f;
+
         float buttonWidth = 300;
         float buttonHeight = 60;
         float buttonX = (currentW - buttonWidth) / 2;
@@ -102,36 +108,22 @@ public class MainMenu {
         sliderRect[2] = buttonWidth;
         sliderRect[3] = knobHeight;
 
-
         glEnable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
         glBindTexture(GL_TEXTURE_2D, backgroundTextureID);
         drawTexturedQuad(0, 0, currentW, currentH);
+
         glBindTexture(GL_TEXTURE_2D, logoTextureID);
         drawTexturedQuad(logoX, logoY, logoWidth, logoHeight);
+
         glDisable(GL_TEXTURE_2D);
 
-        if (isPlayHovered) {
-            glColor4f(1.0f, 1.0f, 1.0f, 0.5f);
-        } else {
-            glColor4f(0.8f, 0.8f, 0.8f, 0.3f);
-        }
-        drawSolidQuad(buttonX, playY, buttonWidth, buttonHeight);
-        if (isQuitHovered) {
-            glColor4f(1.0f, 0.5f, 0.5f, 0.6f);
-        } else {
-            glColor4f(0.8f, 0.2f, 0.2f, 0.3f);
-        }
-        drawSolidQuad(buttonX, quitY, buttonWidth, buttonHeight);
-        glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
-        float playTextX = buttonX + (buttonWidth - FontRenderer.getStringWidth("PLAY")) / 2;
-        float quitTextX = buttonX + (buttonWidth - FontRenderer.getStringWidth("QUIT")) / 2;
-        float textYOffset = (buttonHeight / 2) + (FontRenderer.FONT_HEIGHT / 2);
+        drawButton(buttonX, playY, buttonWidth, buttonHeight, "PLAY", isPlayHovered);
 
-        FontRenderer.drawString("PLAY", playTextX, playY + textYOffset);
-        FontRenderer.drawString("QUIT", quitTextX, quitY + textYOffset);
+        drawButton(buttonX, quitY, buttonWidth, buttonHeight, "QUIT", isQuitHovered);
 
         String rdText = "Render Distance: " + World.RENDER_DISTANCE;
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -151,28 +143,55 @@ public class MainMenu {
         sliderKnobRect[2] = knobWidth;
         sliderKnobRect[3] = knobHeight;
 
-        glColor4f(0.9f, 0.9f, 0.9f, 0.8f);
-        drawSolidQuad(knobX, knobY, knobWidth, knobHeight);
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, buttonTextureID);
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        drawTexturedQuad(knobX, knobY, knobWidth, knobHeight);
+        glDisable(GL_TEXTURE_2D);
 
         glDisable(GL_BLEND);
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
         restore3DRendering();
     }
 
+    private void drawButton(float x, float y, float w, float h, String text, boolean hovered) {
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, buttonTextureID);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        if (hovered) {
+            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        } else {
+            glColor4f(0.8f, 0.8f, 0.8f, 1.0f);
+        }
+
+        drawTexturedQuad(x, y, w, h);
+        glDisable(GL_TEXTURE_2D);
+
+        float textWidth = FontRenderer.getStringWidth(text);
+        float textX = x + (w - textWidth) / 2;
+        float textY = y + (h + FontRenderer.FONT_HEIGHT) / 2 - 4;
+
+        if (hovered) {
+            glColor4f(1.0f, 1.0f, 0.6f, 1.0f);
+        } else {
+            glColor4f(0.9f, 0.9f, 0.9f, 1.0f);
+        }
+
+        FontRenderer.drawString(text, textX, textY);
+    }
+
     private void setup2DRendering() {
         int[] width = new int[1];
         int[] height = new int[1];
         glfwGetFramebufferSize(game.getWindowHandle(), width, height);
-
         glViewport(0, 0, width[0], height[0]);
-
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
         glOrtho(0, width[0], height[0], 0, -1, 1);
-
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
-
         glDisable(GL_LIGHTING);
         glDisable(GL_DEPTH_TEST);
     }

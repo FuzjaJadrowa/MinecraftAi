@@ -23,26 +23,46 @@ public class Player {
     private int playerTextureID;
 
     private int selectedSlot = 0;
-    private ItemStack[] inventory = new ItemStack[9];
+    private ItemStack[] inventory = new ItemStack[36];
 
     private int targetX, targetY, targetZ;
     private float breakProgress = 0.0f;
     private Block currentTargetBlock = null;
 
+    private int health = 20;
+    private final int maxHealth = 20;
+    private float highestYSinceOnGround = 80.0f;
+    private boolean wasOnGround = true;
+    private float regenTimer = 0.0f;
+    private boolean isDead = false;
+
     public Player(World world) {
         this.world = world;
+        float spawnY = 80.0f;
+        if (world != null) {
+            world.getOrLoadChunk(0, 0);
+            for (int y = Chunk.CHUNK_SIZE_Y - 1; y >= 0; y--) {
+                Block block = world.getBlockAt(0, y, 0);
+                if (block != null) {
+                    spawnY = y + 1.0f;
+                    break;
+                }
+            }
+        }
         this.x = 0;
-        this.y = 80;
+        this.y = spawnY;
         this.z = 0;
         this.prevX = 0;
-        this.prevY = 80;
+        this.prevY = spawnY;
         this.prevZ = 0;
         this.yaw = 0;
         this.pitch = 0;
         this.playerTextureID = TextureLoader.loadTexture("/assets/textures/entity/player.png");
+        this.highestYSinceOnGround = spawnY;
     }
 
     public void handleInput(long window) {
+        if (isDead) return;
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
             tryPlaceBlock(world);
         }
@@ -234,6 +254,11 @@ public class Player {
     }
 
     public void update(long window, double dt) {
+        if (isDead) {
+            velocityY = 0;
+            return;
+        }
+
         prevX = x;
         prevY = y;
         prevZ = z;
@@ -343,6 +368,32 @@ public class Player {
             } else {
                 walkTime = 0.0f;
             }
+        }
+
+        boolean isOnGround = onGround();
+        if (isOnGround) {
+            if (!wasOnGround) {
+                float fallDistance = highestYSinceOnGround - y;
+                if (fallDistance >= 4.0f) {
+                    takeDamage(Math.round(fallDistance - 3.0f));
+                }
+            }
+            highestYSinceOnGround = y;
+        } else {
+            if (y > highestYSinceOnGround) {
+                highestYSinceOnGround = y;
+            }
+        }
+        wasOnGround = isOnGround;
+
+        if (!isDead && health < maxHealth) {
+            regenTimer += dt;
+            if (regenTimer >= 1.5f) {
+                health = Math.min(maxHealth, health + 1);
+                regenTimer = 0.0f;
+            }
+        } else {
+            regenTimer = 0.0f;
         }
     }
 
@@ -600,6 +651,7 @@ public class Player {
     public float getX() { return x; }
     public float getY() { return y; }
     public float getZ() { return z; }
+    public World getWorld() { return world; }
 
     public int getSelectedSlot() {
         return selectedSlot;
@@ -613,5 +665,131 @@ public class Player {
 
     public ItemStack[] getInventory() {
         return inventory;
+    }
+
+    public boolean addItemStack(ItemStack stack) {
+        if (stack == null) return true;
+        ItemType itemType = stack.getType();
+
+        for (int i = 0; i < inventory.length; i++) {
+            ItemStack s = inventory[i];
+            if (s != null && s.getType() == itemType && !s.isFull()) {
+                int left = s.addAmount(stack.getCount());
+                stack.setCount(left);
+                if (left == 0) return true;
+            }
+        }
+
+        for (int i = 0; i < inventory.length; i++) {
+            if (inventory[i] == null) {
+                inventory[i] = stack;
+                return true;
+            }
+        }
+
+        return stack.getCount() == 0;
+    }
+
+    public int getHealth() { return health; }
+    public int getMaxHealth() { return maxHealth; }
+    public boolean isDead() { return isDead; }
+
+    public void takeDamage(int amount) {
+        if (isDead) return;
+        health = Math.max(0, health - amount);
+        if (health <= 0) {
+            isDead = true;
+        }
+    }
+
+    public void respawn() {
+        float spawnY = 80.0f;
+        if (world != null) {
+            world.getOrLoadChunk(0, 0);
+            for (int y = Chunk.CHUNK_SIZE_Y - 1; y >= 0; y--) {
+                Block block = world.getBlockAt(0, y, 0);
+                if (block != null) {
+                    spawnY = y + 1.0f;
+                    break;
+                }
+            }
+        }
+        this.x = 0;
+        this.y = spawnY;
+        this.z = 0;
+        this.prevX = 0;
+        this.prevY = spawnY;
+        this.prevZ = 0;
+        this.velocityY = 0;
+        this.health = maxHealth;
+        this.isDead = false;
+        this.highestYSinceOnGround = spawnY;
+        this.wasOnGround = true;
+        this.regenTimer = 0.0f;
+    }
+
+    public void renderPlayerModelGUI(float centerX, float centerY, float modelScale, double mouseX, double mouseY, float currentW, float currentH) {
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, playerTextureID);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0, currentW, currentH, 0, -100, 100);
+
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+
+        glEnable(GL_DEPTH_TEST);
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        glTranslatef(centerX, centerY, 0.0f);
+        glScalef(modelScale, -modelScale, modelScale);
+
+        float dx = (float) (mouseX - centerX);
+        float dy = (float) (mouseY - centerY);
+        float angleYaw = (float) Math.toDegrees(Math.atan2(dx, 40.0f));
+        float anglePitch = (float) Math.toDegrees(Math.atan2(dy, 40.0f));
+
+        angleYaw = Math.max(-45.0f, Math.min(45.0f, angleYaw));
+        anglePitch = Math.max(-30.0f, Math.min(30.0f, anglePitch));
+
+        glRotatef(180.0f, 0.0f, 1.0f, 0.0f);
+        glRotatef(-20.0f, 0.0f, 1.0f, 0.0f);
+
+        drawTexturedBox(-0.25f, 0.75f, -0.125f, 0.25f, 1.5f, 0.125f, 16, 16, 8, 12, 4);
+        drawTexturedBox(-0.27f, 0.73f, -0.145f, 0.27f, 1.52f, 0.145f, 16, 32, 8, 12, 4);
+
+        drawTexturedBox(-0.5f, 0.75f, -0.125f, -0.25f, 1.5f, 0.125f, 40, 16, 4, 12, 4);
+        drawTexturedBox(-0.52f, 0.73f, -0.145f, -0.23f, 1.52f, 0.145f, 40, 32, 4, 12, 4);
+
+        drawTexturedBox(0.25f, 0.75f, -0.125f, 0.5f, 1.5f, 0.125f, 32, 48, 4, 12, 4);
+        drawTexturedBox(0.23f, 0.73f, -0.145f, 0.52f, 1.52f, 0.145f, 48, 48, 4, 12, 4);
+
+        drawTexturedBox(-0.25f, 0.0f, -0.125f, 0.0f, 0.75f, 0.125f, 0, 16, 4, 12, 4);
+        drawTexturedBox(-0.27f, -0.02f, -0.145f, 0.02f, 0.77f, 0.145f, 0, 32, 4, 12, 4);
+
+        drawTexturedBox(0.0f, 0.0f, -0.125f, 0.25f, 0.75f, 0.125f, 16, 48, 4, 12, 4);
+        drawTexturedBox(-0.02f, -0.02f, -0.145f, 0.27f, 0.77f, 0.145f, 0, 48, 4, 12, 4);
+
+        glPushMatrix();
+        glTranslatef(0.0f, 1.5f, 0.0f);
+        glRotatef(angleYaw, 0.0f, 1.0f, 0.0f);
+        glRotatef(-anglePitch, 1.0f, 0.0f, 0.0f);
+
+        drawTexturedBox(-0.25f, 0.0f, -0.25f, 0.25f, 0.5f, 0.25f, 0, 0, 8, 8, 8);
+        drawTexturedBox(-0.27f, -0.02f, -0.27f, 0.27f, 0.52f, 0.27f, 32, 0, 8, 8, 8);
+        glPopMatrix();
+
+        glDisable(GL_DEPTH_TEST);
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
+
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
     }
 }

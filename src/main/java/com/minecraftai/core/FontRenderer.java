@@ -122,6 +122,18 @@ public class FontRenderer {
         glDisable(GL_TEXTURE_2D);
     }
 
+    public static void drawString(String text, float x, float y, float scale) {
+        if (scale == 1.0f) {
+            drawString(text, x, y);
+            return;
+        }
+        glPushMatrix();
+        glTranslatef(x, y, 0);
+        glScalef(scale, scale, 1.0f);
+        drawString(text, 0, 0);
+        glPopMatrix();
+    }
+
     public static void drawStringRegular(String text, float x, float y) {
         if (regularCharData == null) return;
 
