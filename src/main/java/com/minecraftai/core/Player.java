@@ -3,30 +3,28 @@ package com.minecraftai.core;
 import com.minecraftai.blocks.Cobblestone;
 import com.minecraftai.blocks.Dirt;
 import com.minecraftai.blocks.Log;
-import com.minecraftai.entity.CopperGolem;
-
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 
 public class Player {
     private float x, y, z;
-    private float prevX, prevY, prevZ; // Cache for physics interpolation
+    private float prevX, prevY, prevZ;
     private boolean isSprinting = false;
+    private float walkTime = 0.0f;
     private float yaw, pitch;
-    private final float speed = 0.07f; // Minecraft walking speed scaled for 60 Hz updates
+    private final float speed = 0.07f;
     private float velocityY = 0;
-    private final float gravity = 0.008f; // Minecraft gravity scaled for 60 Hz updates
-    private final float jumpStrength = 0.14f; // Minecraft jump velocity scaled for 60 Hz updates
+    private final float gravity = 0.008f;
+    private final float jumpStrength = 0.14f;
     private final float eyeHeight = 1.7f;
     private long lastBlockPlaceTime = 0;
     private final long blockPlaceCooldown = 200_000_000L;
-    private CopperGolem copperGolem;
     private World world;
+    private int playerTextureID;
 
     private int selectedSlot = 0;
     private ItemStack[] inventory = new ItemStack[9];
 
-    // System niszczenia bloków (postęp, twardość, namierzanie)
     private int targetX, targetY, targetZ;
     private float breakProgress = 0.0f;
     private Block currentTargetBlock = null;
@@ -41,17 +39,12 @@ public class Player {
         this.prevZ = 0;
         this.yaw = 0;
         this.pitch = 0;
+        this.playerTextureID = TextureLoader.loadTexture("/assets/textures/entity/player.png");
     }
 
     public void handleInput(long window) {
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
             tryPlaceBlock(world);
-        }
-        if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && copperGolem == null) {
-            float spawnX = x + 2;
-            float spawnY = y;
-            float spawnZ = z + 2;
-            copperGolem = new CopperGolem(spawnX, spawnY, spawnZ);
         }
     }
 
@@ -67,15 +60,161 @@ public class Player {
         return prevZ + (z - prevZ) * alpha;
     }
 
-    public void applyCameraTransform(float alpha) {
-        float[] cam = getCameraLookAt(alpha);
+    public void applyCameraTransform(float alpha, int cameraMode) {
+        float[] cam = getCameraLookAt(alpha, cameraMode);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         lookAt(cam[0], cam[1], cam[2], cam[3], cam[4], cam[5], 0, 1, 0);
     }
 
-    public void renderEntities() {
-        if (copperGolem != null) copperGolem.render();
+    public void renderPlayerModel(float alpha, int cameraMode) {
+        if (cameraMode == 0) return;
+
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, playerTextureID);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+        glPushMatrix();
+
+        float rx = getRenderX(alpha);
+        float ry = getRenderY(alpha);
+        float rz = getRenderZ(alpha);
+        glTranslatef(rx, ry, rz);
+
+        glRotatef(-yaw, 0.0f, 1.0f, 0.0f);
+
+        float swingAngle = (float) Math.sin(walkTime) * 35.0f;
+
+        glPushMatrix();
+        glTranslatef(0.0f, 1.5f, 0.0f);
+        glRotatef(pitch, 1.0f, 0.0f, 0.0f);
+
+        drawTexturedBox(-0.25f, 0.0f, -0.25f, 0.25f, 0.5f, 0.25f, 0, 0, 8, 8, 8);
+        drawTexturedBox(-0.27f, -0.02f, -0.27f, 0.27f, 0.52f, 0.27f, 32, 0, 8, 8, 8);
+        glPopMatrix();
+
+        drawTexturedBox(-0.25f, 0.75f, -0.125f, 0.25f, 1.5f, 0.125f, 16, 16, 8, 12, 4);
+        drawTexturedBox(-0.27f, 0.73f, -0.145f, 0.27f, 1.52f, 0.145f, 16, 32, 8, 12, 4);
+
+        glPushMatrix();
+        glTranslatef(-0.375f, 1.375f, 0.0f);
+        glRotatef(swingAngle, 1.0f, 0.0f, 0.0f);
+        drawTexturedBox(-0.125f, -0.625f, -0.125f, 0.125f, 0.125f, 0.125f, 40, 16, 4, 12, 4);
+        drawTexturedBox(-0.145f, -0.645f, -0.145f, 0.145f, 0.145f, 0.145f, 40, 32, 4, 12, 4);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef(0.375f, 1.375f, 0.0f);
+        glRotatef(-swingAngle, 1.0f, 0.0f, 0.0f);
+        drawTexturedBox(-0.125f, -0.625f, -0.125f, 0.125f, 0.125f, 0.125f, 32, 48, 4, 12, 4);
+        drawTexturedBox(-0.145f, -0.645f, -0.145f, 0.145f, 0.145f, 0.145f, 48, 48, 4, 12, 4);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef(-0.125f, 0.75f, 0.0f);
+        glRotatef(-swingAngle, 1.0f, 0.0f, 0.0f);
+        drawTexturedBox(-0.125f, -0.75f, -0.125f, 0.125f, 0.0f, 0.125f, 0, 16, 4, 12, 4);
+        drawTexturedBox(-0.145f, -0.77f, -0.145f, 0.145f, 0.02f, 0.145f, 0, 32, 4, 12, 4);
+        glPopMatrix();
+
+        glPushMatrix();
+        glTranslatef(0.125f, 0.75f, 0.0f);
+        glRotatef(swingAngle, 1.0f, 0.0f, 0.0f);
+        drawTexturedBox(-0.125f, -0.75f, -0.125f, 0.125f, 0.0f, 0.125f, 16, 48, 4, 12, 4);
+        drawTexturedBox(-0.145f, -0.77f, -0.145f, 0.145f, 0.02f, 0.145f, 0, 48, 4, 12, 4);
+        glPopMatrix();
+
+        glPopMatrix();
+        glDisable(GL_BLEND);
+    }
+
+    private void drawTexturedBox(float x1, float y1, float z1, float x2, float y2, float z2, int u, int v, int w, int h, int d) {
+        float tw = 64.0f;
+        float th = 64.0f;
+
+        glBegin(GL_QUADS);
+
+        glNormal3f(0.0f, 1.0f, 0.0f);
+        glTexCoord2f((u + d) / tw, v / th);                 glVertex3f(x1, y2, z1);
+        glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y2, z2);
+        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y2, z2);
+        glTexCoord2f((u + d + w) / tw, v / th);             glVertex3f(x2, y2, z1);
+
+        glNormal3f(0.0f, -1.0f, 0.0f);
+        glTexCoord2f((u + d + w) / tw, v / th);             glVertex3f(x1, y1, z1);
+        glTexCoord2f((u + d + 2 * w) / tw, v / th);         glVertex3f(x2, y1, z1);
+        glTexCoord2f((u + d + 2 * w) / tw, (v + d) / th);     glVertex3f(x2, y1, z2);
+        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x1, y1, z2);
+
+        glNormal3f(0.0f, 0.0f, 1.0f);
+        glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y1, z2);
+        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y1, z2);
+        glTexCoord2f((u + d + w) / tw, (v + d + h) / th);     glVertex3f(x2, y2, z2);
+        glTexCoord2f((u + d) / tw, (v + d + h) / th);         glVertex3f(x1, y2, z2);
+
+        glNormal3f(0.0f, 0.0f, -1.0f);
+        glTexCoord2f((u + 2 * d + 2 * w) / tw, (v + d) / th); glVertex3f(x2, y1, z1);
+        glTexCoord2f((u + 2 * d + 2 * w) / tw, (v + d + h) / th); glVertex3f(x2, y2, z1);
+        glTexCoord2f((u + 2 * d + w) / tw, (v + d + h) / th); glVertex3f(x1, y2, z1);
+        glTexCoord2f((u + 2 * d + w) / tw, (v + d) / th);     glVertex3f(x1, y1, z1);
+
+        glNormal3f(1.0f, 0.0f, 0.0f);
+        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y1, z2);
+        glTexCoord2f((u + 2 * d + w) / tw, (v + d) / th);     glVertex3f(x2, y1, z1);
+        glTexCoord2f((u + 2 * d + w) / tw, (v + d + h) / th); glVertex3f(x2, y2, z1);
+        glTexCoord2f((u + d + w) / tw, (v + d + h) / th);     glVertex3f(x2, y2, z2);
+
+        glNormal3f(-1.0f, 0.0f, 0.0f);
+        glTexCoord2f(u / tw, (v + d) / th);                 glVertex3f(x1, y1, z1);
+        glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y1, z2);
+        glTexCoord2f((u + d) / tw, (v + d + h) / th);         glVertex3f(x1, y2, z2);
+        glTexCoord2f(u / tw, (v + d + h) / th);             glVertex3f(x1, y2, z1);
+
+        glEnd();
+    }
+
+    private void drawSolidBox(float x1, float y1, float z1, float x2, float y2, float z2) {
+        glBegin(GL_QUADS);
+
+        glNormal3f(0.0f, 0.0f, 1.0f);
+        glVertex3f(x1, y1, z2);
+        glVertex3f(x2, y1, z2);
+        glVertex3f(x2, y2, z2);
+        glVertex3f(x1, y2, z2);
+
+        glNormal3f(0.0f, 0.0f, -1.0f);
+        glVertex3f(x1, y1, z1);
+        glVertex3f(x1, y2, z1);
+        glVertex3f(x2, y2, z1);
+        glVertex3f(x2, y1, z1);
+
+        glNormal3f(0.0f, 1.0f, 0.0f);
+        glVertex3f(x1, y2, z1);
+        glVertex3f(x1, y2, z2);
+        glVertex3f(x2, y2, z2);
+        glVertex3f(x2, y2, z1);
+
+        glNormal3f(0.0f, -1.0f, 0.0f);
+        glVertex3f(x1, y1, z1);
+        glVertex3f(x2, y1, z1);
+        glVertex3f(x2, y1, z2);
+        glVertex3f(x1, y1, z2);
+
+        glNormal3f(1.0f, 0.0f, 0.0f);
+        glVertex3f(x2, y1, z1);
+        glVertex3f(x2, y2, z1);
+        glVertex3f(x2, y2, z2);
+        glVertex3f(x2, y1, z2);
+
+        glNormal3f(-1.0f, 0.0f, 0.0f);
+        glVertex3f(x1, y1, z1);
+        glVertex3f(x1, y1, z2);
+        glVertex3f(x1, y2, z2);
+        glVertex3f(x1, y2, z1);
+
+        glEnd();
     }
 
     private void lookAt(float eyeX, float eyeY, float eyeZ, float centerX, float centerY, float centerZ, float upX, float upY, float upZ) {
@@ -99,7 +238,6 @@ public class Player {
         prevY = y;
         prevZ = z;
 
-        // 1. Obsługa niszczenia bloku (breakProgress)
         boolean isBreaking = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
         Block target = getTargetBlock(world, 4.5f);
 
@@ -116,7 +254,7 @@ public class Player {
                     world.removeBlock(targetX, targetY, targetZ);
                     ItemType drop = target.getItemDrop();
                     if (drop != null) {
-                        addItem(drop);
+                        world.spawnDroppedItem(targetX + 0.5f, targetY + 0.5f, targetZ + 0.5f, drop);
                     }
                     breakProgress = 0.0f;
                     currentTargetBlock = null;
@@ -133,7 +271,6 @@ public class Player {
             currentTargetBlock = null;
         }
 
-        // 2. Obsługa poruszania się (fizyka, kierunki, slizganie)
         float dx = 0, dz = 0;
         float inputX = 0;
         float inputZ = 0;
@@ -147,25 +284,23 @@ public class Player {
         if (inputX != 0 || inputZ != 0) {
             isSprinting = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && inputZ > 0;
 
-            // Modyfikator prędkości zależny od kierunku (styl Minecraft)
             float speedMultiplier = 1.0f;
             if (inputZ < 0) {
-                speedMultiplier = 0.6f; // W tył (60% prędkości)
+                speedMultiplier = 0.6f;
             } else if (inputZ == 0 && inputX != 0) {
-                speedMultiplier = 0.8f; // W bok (80% prędkości)
+                speedMultiplier = 0.8f;
             } else if (inputZ > 0 && inputX != 0) {
-                speedMultiplier = 0.9f; // Diagonalnie w przód (90% prędkości)
+                speedMultiplier = 0.9f;
             }
 
             if (isSprinting) {
-                speedMultiplier *= 1.3f; // Sprint w Minecraft
+                speedMultiplier *= 1.3f;
             }
 
             double radYaw = Math.toRadians(yaw);
             double sin = Math.sin(radYaw);
             double cos = Math.cos(radYaw);
 
-            // Normalizacja wektora wejściowego ruchu i transformacja na świat
             float length = (float) Math.sqrt(inputX * inputX + inputZ * inputZ);
             float nx = inputX / length;
             float nz = inputZ / length;
@@ -174,7 +309,6 @@ public class Player {
             dz = (float) (nx * sin - nz * cos) * speed * speedMultiplier;
         }
 
-        // Ślizganie się po ścianach (niezależne kolizje X i Z)
         if (!collides(x + dx, y, z)) {
             x += dx;
         }
@@ -182,7 +316,6 @@ public class Player {
             z += dz;
         }
 
-        // Grawitacja i skok
         velocityY -= gravity;
         float nextY = y + velocityY;
 
@@ -198,6 +331,19 @@ public class Player {
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && onGround()) {
             velocityY = jumpStrength;
         }
+
+        if (dx != 0 || dz != 0) {
+            walkTime += dt * (isSprinting ? 15.0f : 10.0f);
+        } else {
+            float walkTimeMod = walkTime % (float)(Math.PI * 2);
+            if (walkTimeMod > 0.1f) {
+                walkTime -= dt * 5.0f;
+            } else if (walkTimeMod < -0.1f) {
+                walkTime += dt * 5.0f;
+            } else {
+                walkTime = 0.0f;
+            }
+        }
     }
 
     private float getBreakSpeed(Block target) {
@@ -205,17 +351,17 @@ public class Player {
         String name = target.getClass().getSimpleName();
         switch (name) {
             case "Leaves":
-                return 5.0f; // 0.2 sekundy
+                return 5.0f;
             case "GrassBlock":
             case "Dirt":
-                return 2.0f; // 0.5 sekundy
+                return 2.0f;
             case "Log":
-                return 1.25f; // 0.8 sekundy
+                return 1.25f;
             case "Stone":
             case "Cobblestone":
-                return 0.7f; // 1.4 sekundy
+                return 0.7f;
             default:
-                return 1.0f; // 1.0 sekunda
+                return 1.0f;
         }
     }
 
@@ -260,18 +406,66 @@ public class Player {
         if (pitch < -MAX_PITCH) pitch = -MAX_PITCH;
     }
 
-    public float[] getCameraLookAt(float alpha) {
+    public float[] getCameraLookAt(float alpha, int cameraMode) {
         float radYaw = (float)Math.toRadians(yaw);
         float radPitch = (float)Math.toRadians(pitch);
         float dirX = (float)(Math.sin(radYaw) * Math.cos(radPitch));
         float dirY = (float)(Math.sin(radPitch));
         float dirZ = (float)(-Math.cos(radYaw) * Math.cos(radPitch));
-        float eyeX = getRenderX(alpha);
-        float eyeY = getRenderY(alpha) + eyeHeight;
-        float eyeZ = getRenderZ(alpha);
-        float lookX = eyeX + dirX;
-        float lookY = eyeY + dirY;
-        float lookZ = eyeZ + dirZ;
+
+        float headX = getRenderX(alpha);
+        float headY = getRenderY(alpha) + eyeHeight;
+        float headZ = getRenderZ(alpha);
+
+        float eyeX, eyeY, eyeZ;
+        float lookX, lookY, lookZ;
+
+        if (cameraMode == 1) {
+            float distance = 4.0f;
+            float step = 0.2f;
+            for (float t = 0; t <= 4.0f; t += step) {
+                float cx = headX - dirX * t;
+                float cy = headY - dirY * t;
+                float cz = headZ - dirZ * t;
+                Block b = world.getBlockAt((int)Math.floor(cx), (int)Math.floor(cy), (int)Math.floor(cz));
+                if (b != null && b.isSolid()) {
+                    distance = Math.max(0.0f, t - 0.3f);
+                    break;
+                }
+            }
+            eyeX = headX - dirX * distance;
+            eyeY = headY - dirY * distance;
+            eyeZ = headZ - dirZ * distance;
+            lookX = headX;
+            lookY = headY;
+            lookZ = headZ;
+        } else if (cameraMode == 2) {
+            float distance = 4.0f;
+            float step = 0.2f;
+            for (float t = 0; t <= 4.0f; t += step) {
+                float cx = headX + dirX * t;
+                float cy = headY + dirY * t;
+                float cz = headZ + dirZ * t;
+                Block b = world.getBlockAt((int)Math.floor(cx), (int)Math.floor(cy), (int)Math.floor(cz));
+                if (b != null && b.isSolid()) {
+                    distance = Math.max(0.0f, t - 0.3f);
+                    break;
+                }
+            }
+            eyeX = headX + dirX * distance;
+            eyeY = headY + dirY * distance;
+            eyeZ = headZ + dirZ * distance;
+            lookX = headX;
+            lookY = headY;
+            lookZ = headZ;
+        } else {
+            eyeX = headX;
+            eyeY = headY;
+            eyeZ = headZ;
+            lookX = eyeX + dirX;
+            lookY = eyeY + dirY;
+            lookZ = eyeZ + dirZ;
+        }
         return new float[]{eyeX, eyeY, eyeZ, lookX, lookY, lookZ};
     }
 

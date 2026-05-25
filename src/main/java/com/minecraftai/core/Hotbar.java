@@ -5,18 +5,20 @@ import static org.lwjgl.opengl.GL11.*;
 
 public class Hotbar {
     private int hotbarTextureID;
+    private int selectionTextureID;
     private Player player;
 
-    private static final float ASPECT_RATIO = 1330.0f / 150.0f;
+    private static final float ASPECT_RATIO = 182.0f / 22.0f;
     private static final float HOTBAR_WIDTH_RATIO = 0.5f;
-    private static final float BOTTOM_MARGIN_PX = 10.0f;
+    private static final float BOTTOM_MARGIN_PX = 0.0f; // Attached to the bottom of the screen
 
     public Hotbar(Player player) {
         this.player = player;
     }
 
     public void init() {
-        hotbarTextureID = TextureLoader.loadTexture("/assets/textures/misc/hotbar.png");
+        hotbarTextureID = TextureLoader.loadTexture("/assets/textures/gui/hotbar.png");
+        selectionTextureID = TextureLoader.loadTexture("/assets/textures/gui/hotbar_selection.png");
     }
 
     public void render(long windowHandle) {
@@ -44,9 +46,9 @@ public class Hotbar {
         glDisable(GL_TEXTURE_2D);
 
         ItemStack[] inventory = player.getInventory();
-        float slotWidth = barWidth / 9.0f;
-        float slotPadding = slotWidth * 0.20f;
-        float itemSize = slotWidth - (slotPadding * 2);
+        float scale = barWidth / 182.0f;
+        float slotWidth = 20.0f * scale;
+        float itemSize = 16.0f * scale;
 
         for (int i = 0; i < inventory.length; i++) {
             ItemStack stack = inventory[i];
@@ -55,52 +57,163 @@ public class Hotbar {
             }
 
             ItemType type = stack.getType();
-            int textureId = type.getTextureId();
 
-            float itemX = barX + (i * slotWidth) + slotPadding;
-            float itemY = barY + slotPadding;
+            float slotX = barX + (1.0f + i * 20.0f) * scale;
+            float slotY = barY + 1.0f * scale;
 
-            glEnable(GL_TEXTURE_2D);
-            glBindTexture(GL_TEXTURE_2D, textureId);
-            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-            drawTexturedQuad(itemX, itemY, itemSize, itemSize);
-            glDisable(GL_TEXTURE_2D);
+            float itemX = slotX + 2.0f * scale;
+            float itemY = slotY + 2.0f * scale;
+
+            // Render block as a 3D cube inside the hotbar slot
+            float centerX = itemX + itemSize / 2.0f;
+            float centerY = itemY + itemSize / 2.0f;
+            draw3DBlock(centerX, centerY, itemSize, type, currentW, currentH);
 
             int count = stack.getCount();
             if (count > 1) {
                 String countStr = String.valueOf(count);
-                float textWidth = FontRenderer.getStringWidth(countStr);
+                float textWidth = FontRenderer.getStringWidthRegular(countStr);
 
                 float textX = (itemX + itemSize) - textWidth - 2;
                 float textY = (itemY + itemSize) - 2;
 
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                 glColor4f(0.1f, 0.1f, 0.1f, 1.0f);
-                FontRenderer.drawString(countStr, textX + 1, textY + 1);
+                FontRenderer.drawStringRegular(countStr, textX + 1, textY + 1);
 
                 glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-                FontRenderer.drawString(countStr, textX, textY);
+                FontRenderer.drawStringRegular(countStr, textX, textY);
             }
         }
 
-
         int selectedSlot = player.getSelectedSlot();
-        float borderX = barX + (selectedSlot * slotWidth);
+        float selectedSlotX = barX + (1.0f + selectedSlot * 20.0f) * scale;
 
-        glLineWidth(2.5f);
-        glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+        float selX = selectedSlotX - 2.0f * scale;
+        float selY = barY - 1.0f * scale;
+        float selWidth = 24.0f * scale;
+        float selHeight = 23.0f * scale;
 
-        glBegin(GL_LINE_LOOP);
-        glVertex2f(borderX, barY);
-        glVertex2f(borderX + slotWidth, barY);
-        glVertex2f(borderX + slotWidth, barY + barHeight);
-        glVertex2f(borderX, barY + barHeight);
-        glEnd();
-
-        glLineWidth(1.0f);
+        glEnable(GL_TEXTURE_2D);
+        glEnable(GL_BLEND); // Ensure blending is enabled for selection frame borders
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glBindTexture(GL_TEXTURE_2D, selectionTextureID);
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        glDisable(GL_BLEND);
+        drawTexturedQuad(selX, selY, selWidth, selHeight);
+        glDisable(GL_TEXTURE_2D);
 
+        glDisable(GL_BLEND);
         restore3DRendering();
+    }
+
+    private void draw3DBlock(float centerX, float centerY, float size, ItemType type, float currentW, float currentH) {
+        float r = size * 0.23f; // Scale factor to fit cube inside slot margins
+
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0, currentW, currentH, 0, -100.0f, 100.0f);
+
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+
+        glEnable(GL_DEPTH_TEST);
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        glTranslatef(centerX, centerY, 0.0f);
+        glRotatef(-30.0f, 1.0f, 0.0f, 0.0f);
+        glRotatef(45.0f, 0.0f, 1.0f, 0.0f);
+
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, TextureAtlas.getAtlasTextureID());
+
+        // TOP face (1.0f brightness)
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        drawFace(TextureAtlas.getUV(getBlockTextureIndex(type, Block.Face.TOP)),
+                 -r, -r, -r,
+                  r, -r, -r,
+                  r, -r,  r,
+                 -r, -r,  r);
+
+        // BOTTOM face (0.5f brightness)
+        glColor4f(0.5f, 0.5f, 0.5f, 1.0f);
+        drawFace(TextureAtlas.getUV(getBlockTextureIndex(type, Block.Face.BOTTOM)),
+                 -r,  r, -r,
+                  r,  r, -r,
+                  r,  r,  r,
+                 -r,  r,  r);
+
+        // EAST face (0.6f brightness)
+        glColor4f(0.6f, 0.6f, 0.6f, 1.0f);
+        drawFace(TextureAtlas.getUV(getBlockTextureIndex(type, Block.Face.EAST)),
+                  r, -r, -r,
+                  r, -r,  r,
+                  r,  r,  r,
+                  r,  r, -r);
+
+        // WEST face (0.6f brightness)
+        glColor4f(0.6f, 0.6f, 0.6f, 1.0f);
+        drawFace(TextureAtlas.getUV(getBlockTextureIndex(type, Block.Face.WEST)),
+                 -r, -r, -r,
+                 -r, -r,  r,
+                 -r,  r,  r,
+                 -r,  r, -r);
+
+        // NORTH face (0.8f brightness)
+        glColor4f(0.8f, 0.8f, 0.8f, 1.0f);
+        drawFace(TextureAtlas.getUV(getBlockTextureIndex(type, Block.Face.NORTH)),
+                 -r, -r, -r,
+                  r, -r, -r,
+                  r,  r, -r,
+                 -r,  r, -r);
+
+        // SOUTH face (0.8f brightness)
+        glColor4f(0.8f, 0.8f, 0.8f, 1.0f);
+        drawFace(TextureAtlas.getUV(getBlockTextureIndex(type, Block.Face.SOUTH)),
+                 -r, -r,  r,
+                  r, -r,  r,
+                  r,  r,  r,
+                 -r,  r,  r);
+
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_DEPTH_TEST);
+
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
+
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+    }
+
+    private void drawFace(float[] uv, float x0, float y0, float z0,
+                         float x1, float y1, float z1,
+                         float x2, float y2, float z2,
+                         float x3, float y3, float z3) {
+        glBegin(GL_QUADS);
+        glTexCoord2f(uv[0], uv[1]); glVertex3f(x0, y0, z0);
+        glTexCoord2f(uv[2], uv[1]); glVertex3f(x1, y1, z1);
+        glTexCoord2f(uv[2], uv[3]); glVertex3f(x2, y2, z2);
+        glTexCoord2f(uv[0], uv[3]); glVertex3f(x3, y3, z3);
+        glEnd();
+    }
+
+    private int getBlockTextureIndex(ItemType type, Block.Face face) {
+        switch (type) {
+            case DIRT:
+                return 1;
+            case COBBLESTONE:
+                return 3;
+            case LOG:
+                if (face == Block.Face.TOP || face == Block.Face.BOTTOM) {
+                    return 5;
+                } else {
+                    return 4;
+                }
+            default:
+                return 0;
+        }
     }
 
     private void setup2DRendering(long windowHandle) {

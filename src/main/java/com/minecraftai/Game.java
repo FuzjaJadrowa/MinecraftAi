@@ -29,6 +29,12 @@ public class Game {
 
     private Hotbar hotbar;
     private float currentFov = 70.0f;
+    private int cameraMode = 0;
+    private float lastDeltaTime = 0.016f;
+    private boolean showDebug = false;
+    private int fps = 0;
+    private int frameCount = 0;
+    private double fpsTimer = 0.0;
 
     public static void main(String[] args) {
         Game game = new Game();
@@ -63,7 +69,6 @@ public class Game {
         glfwShowWindow(window);
         GL.createCapabilities();
 
-        // Initialize our optimized Texture Atlas
         TextureAtlas.init();
 
         glEnable(GL_DEPTH_TEST);
@@ -95,6 +100,12 @@ public class Game {
         }
 
         if (currentState == GameState.IN_GAME && action == GLFW_PRESS) {
+            if (key == GLFW_KEY_F3) {
+                showDebug = !showDebug;
+            }
+            if (key == GLFW_KEY_F5) {
+                cameraMode = (cameraMode + 1) % 3;
+            }
             if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9) {
                 int slotIndex = key - GLFW_KEY_1;
                 player.setSelectedSlot(slotIndex);
@@ -124,21 +135,31 @@ public class Game {
     private void loop() {
         double lastTime = glfwGetTime();
         double accumulator = 0.0;
-        final double PHYSICS_STEP = 1.0 / 60.0; // Aktualizacja fizyki z częstotliwością 60 Hz
+        final double PHYSICS_STEP = 1.0 / 60.0;
 
         while (!glfwWindowShouldClose(window)) {
             double currentTime = glfwGetTime();
             double deltaTime = currentTime - lastTime;
             lastTime = currentTime;
 
-            // Zabezpieczenie przed "spiral of death" w przypadku nagłego spadku klatek
             if (deltaTime > 0.1) deltaTime = 0.1;
+            this.lastDeltaTime = (float) deltaTime;
+
+            // Obliczanie FPS
+            frameCount++;
+            fpsTimer += deltaTime;
+            if (fpsTimer >= 1.0) {
+                fps = frameCount;
+                frameCount = 0;
+                fpsTimer -= 1.0;
+            }
 
             if (currentState == GameState.IN_GAME) {
                 accumulator += deltaTime;
                 while (accumulator >= PHYSICS_STEP) {
                     player.handleInput(window);
                     player.update(window, PHYSICS_STEP);
+                    world.updateDroppedItems((float) PHYSICS_STEP, player);
                     accumulator -= PHYSICS_STEP;
                 }
             }
@@ -164,15 +185,18 @@ public class Game {
         glfwGetFramebufferSize(window, width, height);
         float aspect = (float) width[0] / height[0];
         glViewport(0, 0, width[0], height[0]);
-
-        // Płynny efekt zmiany FOV podczas sprintu (Minecraft sprint FOV effect)
+        // Płynny efekt zmiany FOV podczas sprintu (Minecraft sprint FOV effect) z delta time
         float targetFov = (player != null && player.isSprinting()) ? 78.0f : 70.0f;
-        currentFov += (targetFov - currentFov) * 0.15f;
-        perspective(currentFov, aspect, 0.1f, 100.0f);
+        float transitionFactor = Math.min(1.0f, 6.0f * lastDeltaTime);
+        currentFov += (targetFov - currentFov) * transitionFactor;
 
-        player.applyCameraTransform(alpha);
+        // Dynamiczne dopasowanie zFar do Render Distance dla uniknięcia czarnej linii odcięcia terenu
+        float farClip = Math.max(100.0f, World.RENDER_DISTANCE * 16.0f * 1.5f);
+        perspective(currentFov, aspect, 0.1f, farClip);
+
+        player.applyCameraTransform(alpha, cameraMode);
         world.render(player);
-        player.renderEntities();
+        player.renderPlayerModel(alpha, cameraMode);
 
         // Rysowanie ramki zaznaczenia i nakładki pękania bloku
         renderBreakingBlockOverlay();
@@ -180,6 +204,9 @@ public class Game {
         if (hotbar != null) {
             hotbar.render(window);
         }
+
+        // Renderowanie ekranu debugowania F3
+        renderDebugInfo();
     }
 
     private void renderBreakingBlockOverlay() {
@@ -192,47 +219,39 @@ public class Game {
         int bz = target.getZ();
         float h = target.getBlockHeight();
 
-        // Renderowanie linii zaznaczenia i nakładki z-fighting
         glDisable(GL_LIGHTING);
         glDisable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        // 1. Nakładka pękania (stopniowo ciemniejący czarny sześcian)
         if (progress > 0.0f) {
-            glColor4f(0.0f, 0.0f, 0.0f, progress * 0.7f); // max 70% czerni
+            glColor4f(0.0f, 0.0f, 0.0f, progress * 0.7f);
             glBegin(GL_QUADS);
-            // GÓRA (TOP) z lekkim offsetem 0.002f dla uniknięcia z-fighting
             glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
             glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
             glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
             glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
 
-            // DÓŁ (BOTTOM)
             glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
             glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
             glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
             glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
 
-            // WSCHÓD (EAST)
             glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
             glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
             glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
             glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
 
-            // ZACHÓD (WEST)
             glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
             glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
             glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
             glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
 
-            // PÓŁNOC (NORTH)
             glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
             glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
             glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
             glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
 
-            // POŁUDNIE (SOUTH)
             glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
             glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
             glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
@@ -240,21 +259,17 @@ public class Game {
             glEnd();
         }
 
-        // 2. Kontur zaznaczonego bloku (czarne cienkie linie)
         glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
         glLineWidth(2.0f);
         glBegin(GL_LINES);
-        // Dolny kwadrat
         glVertex3f(bx, by, bz); glVertex3f(bx + 1, by, bz);
         glVertex3f(bx + 1, by, bz); glVertex3f(bx + 1, by, bz + 1);
         glVertex3f(bx + 1, by, bz + 1); glVertex3f(bx, by, bz + 1);
         glVertex3f(bx, by, bz + 1); glVertex3f(bx, by, bz);
-        // Górny kwadrat
         glVertex3f(bx, by + h, bz); glVertex3f(bx + 1, by + h, bz);
         glVertex3f(bx + 1, by + h, bz); glVertex3f(bx + 1, by + h, bz + 1);
         glVertex3f(bx + 1, by + h, bz + 1); glVertex3f(bx, by + h, bz + 1);
         glVertex3f(bx, by + h, bz + 1); glVertex3f(bx, by + h, bz);
-        // Pionowe słupki
         glVertex3f(bx, by, bz); glVertex3f(bx, by + h, bz);
         glVertex3f(bx + 1, by, bz); glVertex3f(bx + 1, by + h, bz);
         glVertex3f(bx + 1, by, bz + 1); glVertex3f(bx + 1, by + h, bz + 1);
@@ -338,6 +353,45 @@ public class Game {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private void renderDebugInfo() {
+        if (!showDebug) return;
+
+        int[] width = new int[1];
+        int[] height = new int[1];
+        glfwGetFramebufferSize(window, width, height);
+
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0, width[0], height[0], 0, -1, 1);
+
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+
+        glDisable(GL_LIGHTING);
+        glDisable(GL_DEPTH_TEST);
+
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+        int px = (int) Math.floor(player.getX());
+        int py = (int) Math.floor(player.getY());
+        int pz = (int) Math.floor(player.getZ());
+        String posText = "Block: " + px + " " + py + " " + pz;
+        String fpsText = fps + " FPS";
+
+        FontRenderer.drawStringRegular(posText, 10, 25);
+        FontRenderer.drawStringRegular(fpsText, 10, 50);
+
+        glEnable(GL_LIGHTING);
+        glEnable(GL_DEPTH_TEST);
+
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
     }
 
     public Player getPlayer() {

@@ -67,7 +67,7 @@ public class MainMenu {
 
         float percentage = relativeX / sliderWidth;
 
-        int newValue = 1 + Math.round(percentage * 9);
+        int newValue = 2 + Math.round(percentage * 30);
 
         World.RENDER_DISTANCE = newValue;
     }
@@ -142,7 +142,7 @@ public class MainMenu {
         glColor4f(0.2f, 0.2f, 0.2f, 0.7f);
         drawSolidQuad(buttonX, sliderY, buttonWidth, sliderBarHeight);
 
-        float currentPercentage = (World.RENDER_DISTANCE - 1) / 9.0f;
+        float currentPercentage = (World.RENDER_DISTANCE - 2) / 30.0f;
         float knobX = buttonX + (currentPercentage * buttonWidth) - (knobWidth / 2);
         float knobY = sliderY + (sliderBarHeight / 2) - (knobHeight / 2);
 

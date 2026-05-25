@@ -11,14 +11,12 @@ public class PerlinNoise {
         for (int i = 0; i < 256; i++) {
             permutation[i] = i;
         }
-        // Shuffle the permutation table
         for (int i = 255; i > 0; i--) {
             int j = rand.nextInt(i + 1);
             int temp = permutation[i];
             permutation[i] = permutation[j];
             permutation[j] = temp;
         }
-        // Replicate it to 512
         for (int i = 0; i < 256; i++) {
             p[i] = permutation[i];
             p[256 + i] = permutation[i];

@@ -11,15 +11,15 @@ import static org.lwjgl.opengl.GL11.*;
 
 public class TextureAtlas {
     private static final String[] TEXTURE_PATHS = {
-        "/assets/textures/block/grass.png",        // 0
-        "/assets/textures/block/dirt.png",         // 1
-        "/assets/textures/block/stone.png",        // 2
-        "/assets/textures/block/cobblestone.png",  // 3
-        "/assets/textures/block/log.png",          // 4
-        "/assets/textures/block/log_top.png",      // 5
-        "/assets/textures/block/leaves.png",       // 6
-        "/assets/textures/block/water.png",        // 7
-        "/assets/textures/block/bedrock.png"       // 8
+        "/assets/textures/block/grass.png",
+        "/assets/textures/block/dirt.png",
+        "/assets/textures/block/stone.png",
+        "/assets/textures/block/cobblestone.png",
+        "/assets/textures/block/log.png",
+        "/assets/textures/block/log_top.png",
+        "/assets/textures/block/leaves.png",
+        "/assets/textures/block/water.png",
+        "/assets/textures/block/bedrock.png"
     };
 
     private static int atlasTextureID = 0;
@@ -92,11 +92,6 @@ public class TextureAtlas {
         return atlasTextureID;
     }
 
-    /**
-     * Zwraca współrzędne UV dla danego indeksu tekstury.
-     * Zwraca tablicę {uMin, vMin, uMax, vMax} z lekkim wcięciem (margin),
-     * aby zapobiec przenikaniu krawędzi (texture bleeding) w OpenGL.
-     */
     public static float[] getUV(int index) {
         float uMin = (index + 0.001f) / (float) TEXTURE_COUNT;
         float uMax = (index + 0.999f) / (float) TEXTURE_COUNT;
