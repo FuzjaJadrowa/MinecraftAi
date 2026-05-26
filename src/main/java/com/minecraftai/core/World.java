@@ -185,4 +185,37 @@ public class World {
     public double getCaveNoise(double x, double y, double z) {
         return noiseGen.noise(x * CAVE_SCALE, y * CAVE_SCALE * 2.0, z * CAVE_SCALE);
     }
+
+    public float getColumnLightFactor(int x, int y, int z) {
+        if (y < 0) return 0.2f;
+        if (y >= Chunk.CHUNK_SIZE_Y) return 1.0f;
+
+        int chunkX = (int) Math.floor((double) x / Chunk.CHUNK_SIZE_X);
+        int chunkZ = (int) Math.floor((double) z / Chunk.CHUNK_SIZE_Z);
+
+        String key = chunkX + "_" + chunkZ;
+        Chunk chunk = chunks.get(key);
+        if (chunk == null) return 1.0f;
+
+        int localX = x % Chunk.CHUNK_SIZE_X;
+        if (localX < 0) localX += Chunk.CHUNK_SIZE_X;
+        int localZ = z % Chunk.CHUNK_SIZE_Z;
+        if (localZ < 0) localZ += Chunk.CHUNK_SIZE_Z;
+
+        float totalBlockage = 0.0f;
+        for (int cy = y + 1; cy < Chunk.CHUNK_SIZE_Y; cy++) {
+            Block b = chunk.getBlock(localX, cy, localZ);
+            if (b != null) {
+                if (b.getClass().getSimpleName().equals("Leaves")) {
+                    totalBlockage += 0.15f;
+                } else if (b.isSolid()) {
+                    totalBlockage += 1.0f;
+                }
+            }
+            if (totalBlockage >= 0.8f) {
+                return 0.2f;
+            }
+        }
+        return Math.max(0.2f, 1.0f - totalBlockage);
+    }
 }

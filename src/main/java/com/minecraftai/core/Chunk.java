@@ -2,6 +2,7 @@ package com.minecraftai.core;
 
 import com.minecraftai.blocks.*;
 import com.minecraftai.generator.Tree;
+import com.minecraftai.renderer.TextureAtlas;
 import java.util.Random;
 
 import static org.lwjgl.opengl.GL11.*;
@@ -219,70 +220,110 @@ public class Chunk {
         glEndList();
     }
 
+    private float getVertexLight(World world, int vx, int vy, int vz) {
+        float l0 = world.getColumnLightFactor(vx - 1, vy, vz - 1);
+        float l1 = world.getColumnLightFactor(vx, vy, vz - 1);
+        float l2 = world.getColumnLightFactor(vx - 1, vy, vz);
+        float l3 = world.getColumnLightFactor(vx, vy, vz);
+        return (l0 + l1 + l2 + l3) / 4.0f;
+    }
+
     private void renderBlockFacesBatched(Block current, int x, int y, int z, World world) {
         int globalX = worldX * CHUNK_SIZE_X + x;
         int globalZ = worldZ * CHUNK_SIZE_Z + z;
         float h = current.blockHeight;
+        float alpha = current.isTransparent() ? 0.7f : 1.0f;
 
         Block neighbor = (y + 1 >= CHUNK_SIZE_Y) ? null : blocks[x][y + 1][z];
         if (shouldRenderFace(current, neighbor)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.TOP));
             glNormal3f(0, 1, 0);
-            glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y + h, z);
-            glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y + h, z);
-            glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
-            glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z + 1);
+            float l0 = getVertexLight(world, globalX, y + 1, globalZ);
+            float l1 = getVertexLight(world, globalX + 1, y + 1, globalZ);
+            float l2 = getVertexLight(world, globalX + 1, y + 1, globalZ + 1);
+            float l3 = getVertexLight(world, globalX, y + 1, globalZ + 1);
+            
+            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y + h, z);
+            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y + h, z);
+            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
+            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z + 1);
         }
 
         neighbor = (y - 1 < 0) ? null : blocks[x][y - 1][z];
         if (shouldRenderFace(current, neighbor)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.BOTTOM));
             glNormal3f(0, -1, 0);
-            glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
-            glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z);
-            glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y, z + 1);
-            glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y, z + 1);
+            float l0 = getVertexLight(world, globalX, y, globalZ);
+            float l1 = getVertexLight(world, globalX + 1, y, globalZ);
+            float l2 = getVertexLight(world, globalX + 1, y, globalZ + 1);
+            float l3 = getVertexLight(world, globalX, y, globalZ + 1);
+            
+            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
+            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z);
+            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y, z + 1);
+            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y, z + 1);
         }
 
         neighbor = (x + 1 >= CHUNK_SIZE_X) ? world.getBlockAt(globalX + 1, y, globalZ) : blocks[x + 1][y][z];
         if (shouldRenderFace(current, neighbor)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.EAST));
             glNormal3f(1, 0, 0);
-            glTexCoord2f(uv[0], uv[1]); glVertex3f(x + 1, y, z);
-            glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z + 1);
-            glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
-            glTexCoord2f(uv[0], uv[3]); glVertex3f(x + 1, y + h, z);
+            float l0 = getVertexLight(world, globalX + 1, y, globalZ);
+            float l1 = getVertexLight(world, globalX + 1, y, globalZ + 1);
+            float l2 = getVertexLight(world, globalX + 1, y + 1, globalZ + 1);
+            float l3 = getVertexLight(world, globalX + 1, y + 1, globalZ);
+            
+            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x + 1, y, z);
+            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z + 1);
+            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
+            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x + 1, y + h, z);
         }
 
         neighbor = (x - 1 < 0) ? world.getBlockAt(globalX - 1, y, globalZ) : blocks[x - 1][y][z];
         if (shouldRenderFace(current, neighbor)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.WEST));
             glNormal3f(-1, 0, 0);
-            glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
-            glTexCoord2f(uv[2], uv[1]); glVertex3f(x, y, z + 1);
-            glTexCoord2f(uv[2], uv[3]); glVertex3f(x, y + h, z + 1);
-            glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z);
+            float l0 = getVertexLight(world, globalX - 1, y, globalZ);
+            float l1 = getVertexLight(world, globalX - 1, y, globalZ + 1);
+            float l2 = getVertexLight(world, globalX - 1, y + 1, globalZ + 1);
+            float l3 = getVertexLight(world, globalX - 1, y + 1, globalZ);
+            
+            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
+            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x, y, z + 1);
+            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x, y + h, z + 1);
+            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z);
         }
 
         neighbor = (z + 1 >= CHUNK_SIZE_Z) ? world.getBlockAt(globalX, y, globalZ + 1) : blocks[x][y][z + 1];
         if (shouldRenderFace(current, neighbor)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.NORTH));
             glNormal3f(0, 0, 1);
-            glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z + 1);
-            glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z + 1);
-            glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
-            glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z + 1);
+            float l0 = getVertexLight(world, globalX, y, globalZ + 1);
+            float l1 = getVertexLight(world, globalX + 1, y, globalZ + 1);
+            float l2 = getVertexLight(world, globalX + 1, y + 1, globalZ + 1);
+            float l3 = getVertexLight(world, globalX, y + 1, globalZ + 1);
+            
+            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z + 1);
+            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z + 1);
+            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
+            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z + 1);
         }
 
         neighbor = (z - 1 < 0) ? world.getBlockAt(globalX, y, globalZ - 1) : blocks[x][y][z - 1];
         if (shouldRenderFace(current, neighbor)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.SOUTH));
             glNormal3f(0, 0, -1);
-            glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
-            glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z);
-            glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z);
-            glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z);
+            float l0 = getVertexLight(world, globalX, y, globalZ - 1);
+            float l1 = getVertexLight(world, globalX + 1, y, globalZ - 1);
+            float l2 = getVertexLight(world, globalX + 1, y + 1, globalZ - 1);
+            float l3 = getVertexLight(world, globalX, y + 1, globalZ - 1);
+            
+            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
+            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z);
+            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z);
+            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z);
         }
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f); // Reset color
     }
 
     private boolean shouldRenderFace(Block current, Block neighbor) {

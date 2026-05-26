@@ -2,6 +2,7 @@ package com.minecraftai;
 
 import com.minecraftai.core.*;
 import com.minecraftai.gui.*;
+import com.minecraftai.renderer.*;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.opengl.GL;
@@ -39,6 +40,9 @@ public class Game {
     private int fps = 0;
     private int frameCount = 0;
     private double fpsTimer = 0.0;
+    private float timeOfDay = 6000.0f; // Noon (starts at midday)
+    private int sunTextureID;
+    private int moonTextureID;
 
     public static void main(String[] args) {
         Game game = new Game();
@@ -74,6 +78,8 @@ public class Game {
         GL.createCapabilities();
 
         TextureAtlas.init();
+        sunTextureID = TextureLoader.loadTexture("/assets/textures/misc/sun.png");
+        moonTextureID = TextureLoader.loadTexture("/assets/textures/misc/moon.png");
 
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_LIGHTING);
@@ -182,6 +188,13 @@ public class Game {
                 fpsTimer -= 1.0;
             }
 
+            if (currentState == GameState.IN_GAME || currentState == GameState.INVENTORY) {
+                timeOfDay += deltaTime * 20.0f; // 20-minute full cycle (10 min day, 10 min night)
+                if (timeOfDay >= 24000.0f) {
+                    timeOfDay -= 24000.0f;
+                }
+            }
+
             if (currentState == GameState.IN_GAME) {
                 accumulator += deltaTime;
                 while (accumulator >= PHYSICS_STEP) {
@@ -196,6 +209,7 @@ public class Game {
                 }
             }
 
+            updateSkyAndLighting();
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             if (currentState == GameState.IN_GAME) {
@@ -233,6 +247,20 @@ public class Game {
         perspective(currentFov, aspect, 0.1f, farClip);
 
         player.applyCameraTransform(alpha, cameraMode);
+
+        // Update directional light position in world space after applying camera transform
+        float angle = (timeOfDay / 24000.0f) * 360.0f - 90.0f;
+        float angleRad = (float) Math.toRadians(angle);
+        float lx = (float) -Math.sin(angleRad);
+        float ly = (float) Math.cos(angleRad);
+        float lz = 0.0f;
+        if (ly >= 0.0f) {
+            glLightfv(GL_LIGHT0, GL_POSITION, new float[]{lx, ly, lz, 0.0f});
+        } else {
+            glLightfv(GL_LIGHT0, GL_POSITION, new float[]{-lx, -ly, -lz, 0.0f});
+        }
+
+        renderSkyEnvironment();
         world.render(player);
         player.renderPlayerModel(alpha, cameraMode);
 
@@ -436,6 +464,126 @@ public class Game {
         glPopMatrix();
         glMatrixMode(GL_MODELVIEW);
         glPopMatrix();
+    }
+
+    private void updateSkyAndLighting() {
+        if (player == null || world == null) return;
+
+        float[] skyColor = getSkyColor(timeOfDay);
+        glClearColor(skyColor[0], skyColor[1], skyColor[2], 0.0f);
+
+        float angle = (timeOfDay / 24000.0f) * 360.0f - 90.0f;
+        float angleRad = (float) Math.toRadians(angle);
+        float lx = (float) -Math.sin(angleRad);
+        float ly = (float) Math.cos(angleRad);
+        float lz = 0.0f;
+
+        float sunHeight = Math.max(0.0f, ly);
+        float ambient = 0.05f + sunHeight * 0.35f;
+        float diffuse = 0.15f + sunHeight * 0.65f;
+
+        float lr, lg, lb;
+        if (ly >= 0.0f) {
+            lr = 1.0f - (1.0f - sunHeight) * 0.1f;
+            lg = 0.95f - (1.0f - sunHeight) * 0.55f;
+            lb = 0.8f - (1.0f - sunHeight) * 0.6f;
+            glLightfv(GL_LIGHT0, GL_POSITION, new float[]{lx, ly, lz, 0.0f});
+        } else {
+            lr = 0.15f;
+            lg = 0.2f;
+            lb = 0.3f;
+            glLightfv(GL_LIGHT0, GL_POSITION, new float[]{-lx, -ly, -lz, 0.0f});
+        }
+
+        float[] lightAmbient = {ambient, ambient, ambient, 1.0f};
+        float[] lightDiffuse = {diffuse * lr, diffuse * lg, diffuse * lb, 1.0f};
+        glLightfv(GL_LIGHT0, GL_AMBIENT, lightAmbient);
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, lightDiffuse);
+    }
+
+    private static float lerp(float start, float end, float f) {
+        return start + f * (end - start);
+    }
+
+    private static float[] getSkyColor(float time) {
+        float r, g, b;
+        if (time >= 400 && time < 11600) {
+            r = 0.5f; g = 0.7f; b = 1.0f;
+        } else if (time >= 11600 && time < 12000) {
+            float f = (time - 11600.0f) / 400.0f;
+            r = lerp(0.5f, 0.9f, f);
+            g = lerp(0.7f, 0.4f, f);
+            b = lerp(1.0f, 0.2f, f);
+        } else if (time >= 12000 && time < 12400) {
+            float f = (time - 12000.0f) / 400.0f;
+            r = lerp(0.9f, 0.02f, f);
+            g = lerp(0.4f, 0.02f, f);
+            b = lerp(0.2f, 0.05f, f);
+        } else if (time >= 12400 && time < 23200) {
+            r = 0.02f; g = 0.02f; b = 0.05f;
+        } else if (time >= 23200 && time < 23600) {
+            float f = (time - 23200.0f) / 400.0f;
+            r = lerp(0.02f, 0.7f, f);
+            g = lerp(0.02f, 0.4f, f);
+            b = lerp(0.05f, 0.3f, f);
+        } else if (time >= 23600 && time < 24000) {
+            float f = (time - 23600.0f) / 400.0f;
+            r = lerp(0.7f, 0.9f, f);
+            g = lerp(0.4f, 0.6f, f);
+            b = lerp(0.3f, 0.4f, f);
+        } else { // time >= 0 && time < 400
+            float f = time / 400.0f;
+            r = lerp(0.9f, 0.5f, f);
+            g = lerp(0.6f, 0.7f, f);
+            b = lerp(0.4f, 1.0f, f);
+        }
+        return new float[]{r, g, b};
+    }
+
+    private void renderSkyEnvironment() {
+        glDisable(GL_LIGHTING);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(false);
+        glEnable(GL_TEXTURE_2D);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+
+        glPushMatrix();
+        glTranslatef(player.getX(), player.getY(), player.getZ());
+
+        float skyAngle = (timeOfDay / 24000.0f) * 360.0f - 90.0f;
+        glRotatef(skyAngle, 0.0f, 0.0f, 1.0f);
+
+        // Draw Sun
+        glBindTexture(GL_TEXTURE_2D, sunTextureID);
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        glBegin(GL_QUADS);
+        float sunSize = 10.0f;
+        float sunDist = 80.0f;
+        glTexCoord2f(0.0f, 1.0f); glVertex3f(-sunSize, sunDist, sunSize);
+        glTexCoord2f(1.0f, 1.0f); glVertex3f(sunSize, sunDist, sunSize);
+        glTexCoord2f(1.0f, 0.0f); glVertex3f(sunSize, sunDist, -sunSize);
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(-sunSize, sunDist, -sunSize);
+        glEnd();
+
+        // Draw Moon
+        glBindTexture(GL_TEXTURE_2D, moonTextureID);
+        glBegin(GL_QUADS);
+        float moonSize = 10.0f;
+        float moonDist = -80.0f;
+        glTexCoord2f(0.0f, 0.0f); glVertex3f(-moonSize, moonDist, -moonSize);
+        glTexCoord2f(1.0f, 0.0f); glVertex3f(moonSize, moonDist, -moonSize);
+        glTexCoord2f(1.0f, 1.0f); glVertex3f(moonSize, moonDist, moonSize);
+        glTexCoord2f(0.0f, 1.0f); glVertex3f(-moonSize, moonDist, moonSize);
+        glEnd();
+
+        glPopMatrix();
+
+        glDisable(GL_BLEND);
+        glDisable(GL_TEXTURE_2D);
+        glDepthMask(true);
+        glEnable(GL_DEPTH_TEST);
+        glEnable(GL_LIGHTING);
     }
 
     public Player getPlayer() {

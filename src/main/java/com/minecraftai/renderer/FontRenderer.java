@@ -1,4 +1,4 @@
-package com.minecraftai.core;
+package com.minecraftai.renderer;
 
 import org.lwjgl.BufferUtils;
 import org.lwjgl.stb.STBTTAlignedQuad;

@@ -1,5 +1,7 @@
 package com.minecraftai.core;
 
+import com.minecraftai.renderer.TextureLoader;
+
 public enum ItemType {
     DIRT,
     COBBLESTONE,

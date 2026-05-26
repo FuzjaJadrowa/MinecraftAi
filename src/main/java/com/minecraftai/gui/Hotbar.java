@@ -3,8 +3,8 @@ package com.minecraftai.gui;
 import com.minecraftai.core.Player;
 import com.minecraftai.core.ItemStack;
 import com.minecraftai.core.ItemType;
-import com.minecraftai.core.TextureLoader;
-import com.minecraftai.core.FontRenderer;
+import com.minecraftai.renderer.TextureLoader;
+import com.minecraftai.renderer.FontRenderer;
 
 import static org.lwjgl.glfw.GLFW.glfwGetFramebufferSize;
 import static org.lwjgl.opengl.GL11.*;

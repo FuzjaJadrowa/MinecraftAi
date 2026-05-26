@@ -2,8 +2,8 @@ package com.minecraftai.gui;
 
 import com.minecraftai.Game;
 import com.minecraftai.core.Player;
-import com.minecraftai.core.FontRenderer;
-import com.minecraftai.core.TextureLoader;
+import com.minecraftai.renderer.FontRenderer;
+import com.minecraftai.renderer.TextureLoader;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;

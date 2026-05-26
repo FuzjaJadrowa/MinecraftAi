@@ -2,7 +2,7 @@ package com.minecraftai.gui;
 
 import com.minecraftai.core.Block;
 import com.minecraftai.core.ItemType;
-import com.minecraftai.core.TextureAtlas;
+import com.minecraftai.renderer.TextureAtlas;
 
 import static org.lwjgl.opengl.GL11.*;
 

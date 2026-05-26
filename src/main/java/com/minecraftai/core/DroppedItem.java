@@ -1,5 +1,6 @@
 package com.minecraftai.core;
 
+import com.minecraftai.renderer.TextureAtlas;
 import static org.lwjgl.opengl.GL11.*;
 
 public class DroppedItem {
