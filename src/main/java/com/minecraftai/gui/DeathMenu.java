@@ -81,37 +81,11 @@ public class DeathMenu {
         quitButtonRect[0] = buttonX; quitButtonRect[1] = quitY;
         quitButtonRect[2] = buttonWidth; quitButtonRect[3] = buttonHeight;
 
-        drawButton(buttonX, respawnY, buttonWidth, buttonHeight, "RESPAWN", isRespawnHovered);
-        drawButton(buttonX, quitY, buttonWidth, buttonHeight, "QUIT", isQuitHovered);
+        GuiRenderer.drawButton(buttonX, respawnY, buttonWidth, buttonHeight, "RESPAWN", isRespawnHovered, buttonTextureID);
+        GuiRenderer.drawButton(buttonX, quitY, buttonWidth, buttonHeight, "QUIT", isQuitHovered, buttonTextureID);
 
         glDisable(GL_BLEND);
         restore3DRendering();
-    }
-
-    private void drawButton(float x, float y, float w, float h, String text, boolean hovered) {
-        glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, buttonTextureID);
-
-        if (hovered) {
-            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        } else {
-            glColor4f(0.8f, 0.8f, 0.8f, 1.0f);
-        }
-
-        drawTexturedQuad(x, y, w, h);
-        glDisable(GL_TEXTURE_2D);
-
-        float textWidth = FontRenderer.getStringWidth(text);
-        float textX = x + (w - textWidth) / 2;
-        float textY = y + (h + FontRenderer.FONT_HEIGHT) / 2 - 4;
-
-        if (hovered) {
-            glColor4f(1.0f, 1.0f, 0.6f, 1.0f);
-        } else {
-            glColor4f(0.9f, 0.9f, 0.9f, 1.0f);
-        }
-
-        FontRenderer.drawString(text, textX, textY);
     }
 
     private void setup2DRendering(long windowHandle) {

@@ -3,6 +3,7 @@ package com.minecraftai.gui;
 import com.minecraftai.core.Block;
 import com.minecraftai.core.ItemType;
 import com.minecraftai.renderer.TextureAtlas;
+import com.minecraftai.renderer.FontRenderer;
 
 import static org.lwjgl.opengl.GL11.*;
 
@@ -109,5 +110,72 @@ public class GuiRenderer {
             default:
                 return 0;
         }
+    }
+
+    public static void drawButton(float x, float y, float w, float h, String text, boolean hovered, int buttonTextureID) {
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, buttonTextureID);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        if (hovered) {
+            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        } else {
+            glColor4f(0.8f, 0.8f, 0.8f, 1.0f);
+        }
+
+        // Draw button using 3-slice cropping/stretching from the middle
+        float leftU = 4.0f / 200.0f;
+        float rightU = 196.0f / 200.0f;
+        
+        // Calculate U coordinates for middle section: crop if w < 200, stretch if w >= 200
+        float midUStart, midUEnd;
+        if (w < 200.0f) {
+            float midTextureWidth = w - 8.0f;
+            midUStart = (100.0f - midTextureWidth / 2.0f) / 200.0f;
+            midUEnd = (100.0f + midTextureWidth / 2.0f) / 200.0f;
+        } else {
+            midUStart = 4.0f / 200.0f;
+            midUEnd = 196.0f / 200.0f;
+        }
+
+        glBegin(GL_QUADS);
+        // Left part (width 4)
+        glTexCoord2f(0.0f, 0.0f); glVertex2f(x, y);
+        glTexCoord2f(leftU, 0.0f); glVertex2f(x + 4, y);
+        glTexCoord2f(leftU, 1.0f); glVertex2f(x + 4, y + h);
+        glTexCoord2f(0.0f, 1.0f); glVertex2f(x, y + h);
+
+        // Middle part (width w - 8)
+        glTexCoord2f(midUStart, 0.0f); glVertex2f(x + 4, y);
+        glTexCoord2f(midUEnd, 0.0f); glVertex2f(x + w - 4, y);
+        glTexCoord2f(midUEnd, 1.0f); glVertex2f(x + w - 4, y + h);
+        glTexCoord2f(midUStart, 1.0f); glVertex2f(x + 4, y + h);
+
+        // Right part (width 4)
+        glTexCoord2f(rightU, 0.0f); glVertex2f(x + w - 4, y);
+        glTexCoord2f(1.0f, 0.0f); glVertex2f(x + w, y);
+        glTexCoord2f(1.0f, 1.0f); glVertex2f(x + w, y + h);
+        glTexCoord2f(rightU, 1.0f); glVertex2f(x + w - 4, y + h);
+        glEnd();
+
+        glDisable(GL_TEXTURE_2D);
+
+        // Draw text with shadow
+        float textWidth = FontRenderer.getStringWidth(text);
+        float textX = x + (w - textWidth) / 2.0f;
+        float textY = y + (h + FontRenderer.FONT_HEIGHT) / 2.0f - 4.0f;
+
+        // Shadow
+        glColor4f(0.0f, 0.0f, 0.0f, 0.5f);
+        FontRenderer.drawString(text, textX + 1.0f, textY + 1.0f);
+
+        // Text
+        if (hovered) {
+            glColor4f(1.0f, 1.0f, 0.6f, 1.0f);
+        } else {
+            glColor4f(0.9f, 0.9f, 0.9f, 1.0f);
+        }
+        FontRenderer.drawString(text, textX, textY);
     }
 }

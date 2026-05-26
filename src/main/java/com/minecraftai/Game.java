@@ -19,6 +19,9 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class Game {
     public enum GameState {
         MAIN_MENU,
+        PLAY_MENU,
+        OPTIONS_MENU,
+        PAUSE_MENU,
         IN_GAME,
         INVENTORY,
         DEATH
@@ -28,6 +31,9 @@ public class Game {
     private Player player;
     private World world;
     private MainMenu mainMenu;
+    private PlayMenu playMenu;
+    private OptionsMenu optionsMenu;
+    private PauseMenu pauseMenu;
     private Hotbar hotbar;
     private InventoryMenu inventoryMenu;
     private DeathMenu deathMenu;
@@ -52,6 +58,9 @@ public class Game {
     public void run() {
         init();
         loop();
+        if (world != null && player != null && world.getWorldName() != null) {
+            WorldSaveManager.saveWorld(world, player, world.getWorldName());
+        }
         glfwDestroyWindow(window);
         glfwTerminate();
     }
@@ -96,6 +105,10 @@ public class Game {
 
         mainMenu = new MainMenu(this);
         FontRenderer.initFont();
+        WorldSaveManager.loadOptions();
+        playMenu = new PlayMenu(this);
+        optionsMenu = new OptionsMenu(this);
+        pauseMenu = new PauseMenu(this);
         currentState = GameState.MAIN_MENU;
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
@@ -104,8 +117,12 @@ public class Game {
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
             if (currentState == GameState.IN_GAME) {
                 pauseGame();
-            } else if (currentState == GameState.MAIN_MENU && player != null) {
+            } else if (currentState == GameState.PAUSE_MENU) {
                 resumeGame();
+            } else if (currentState == GameState.OPTIONS_MENU) {
+                optionsMenu.goBack();
+            } else if (currentState == GameState.PLAY_MENU) {
+                playMenu.goBack();
             } else if (currentState == GameState.INVENTORY) {
                 inventoryMenu.onClose();
                 currentState = GameState.IN_GAME;
@@ -149,6 +166,12 @@ public class Game {
             player.addRotation((float) dx, (float) dy);
         } else if (currentState == GameState.MAIN_MENU) {
             mainMenu.handleMouseMove(xpos, ypos);
+        } else if (currentState == GameState.PLAY_MENU) {
+            playMenu.handleMouseMove(xpos, ypos);
+        } else if (currentState == GameState.OPTIONS_MENU) {
+            optionsMenu.handleMouseMove(xpos, ypos);
+        } else if (currentState == GameState.PAUSE_MENU) {
+            pauseMenu.handleMouseMove(xpos, ypos);
         } else if (currentState == GameState.INVENTORY) {
             inventoryMenu.handleMouseMove(xpos, ypos);
         } else if (currentState == GameState.DEATH) {
@@ -159,6 +182,12 @@ public class Game {
     private void mouseButtonCallback(long window, int button, int action, int mods) {
         if (currentState == GameState.MAIN_MENU) {
             mainMenu.handleMouseClick(lastX, lastY, button, action);
+        } else if (currentState == GameState.PLAY_MENU) {
+            playMenu.handleMouseClick(lastX, lastY, button, action);
+        } else if (currentState == GameState.OPTIONS_MENU) {
+            optionsMenu.handleMouseClick(lastX, lastY, button, action);
+        } else if (currentState == GameState.PAUSE_MENU) {
+            pauseMenu.handleMouseClick(lastX, lastY, button, action);
         } else if (currentState == GameState.INVENTORY) {
             inventoryMenu.handleMouseClick(lastX, lastY, button, action);
         } else if (currentState == GameState.DEATH) {
@@ -220,6 +249,16 @@ public class Game {
             } else if (currentState == GameState.DEATH) {
                 renderGame(1.0f);
                 deathMenu.render(window);
+            } else if (currentState == GameState.PAUSE_MENU) {
+                renderGame(1.0f);
+                pauseMenu.render();
+            } else if (currentState == GameState.OPTIONS_MENU) {
+                if (optionsMenu.getPreviousState() == GameState.PAUSE_MENU) {
+                    renderGame(1.0f);
+                }
+                optionsMenu.render();
+            } else if (currentState == GameState.PLAY_MENU) {
+                playMenu.render();
             } else {
                 renderMainMenu();
             }
@@ -353,21 +392,58 @@ public class Game {
         mainMenu.render();
     }
 
-    public void startGame() {
-        if (world == null) {
-            world = new World();
-            player = new Player(world);
-
-            hotbar = new Hotbar(player);
-            hotbar.init();
-
-            inventoryMenu = new InventoryMenu(player);
-            inventoryMenu.init();
-
-            deathMenu = new DeathMenu(this, player);
-            deathMenu.init();
+    public void setGameState(GameState state) {
+        this.currentState = state;
+        if (state == GameState.PLAY_MENU) {
+            playMenu.refreshSlots();
         }
+    }
+
+    public void enterPlayMenu() {
+        playMenu.refreshSlots();
+        setGameState(GameState.PLAY_MENU);
+    }
+
+    public void enterOptionsMenu(GameState prev) {
+        optionsMenu.setPreviousState(prev);
+        setGameState(GameState.OPTIONS_MENU);
+    }
+
+    public void startNewOrLoadWorld(String worldName) {
+        world = new World();
+        world.setWorldName(worldName);
+        player = new Player(world);
+
+        if (WorldSaveManager.worldExists(worldName)) {
+            WorldSaveManager.loadWorld(world, player, worldName);
+        } else {
+            player.respawn();
+            WorldSaveManager.saveWorld(world, player, worldName);
+        }
+
+        hotbar = new Hotbar(player);
+        hotbar.init();
+
+        inventoryMenu = new InventoryMenu(player);
+        inventoryMenu.init();
+
+        deathMenu = new DeathMenu(this, player);
+        deathMenu.init();
+
         resumeGame();
+    }
+
+    public void saveAndQuit() {
+        if (world != null && player != null && world.getWorldName() != null) {
+            WorldSaveManager.saveWorld(world, player, world.getWorldName());
+        }
+        world = null;
+        player = null;
+        hotbar = null;
+        inventoryMenu = null;
+        deathMenu = null;
+        setGameState(GameState.MAIN_MENU);
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
 
     public void resumeGame() {
@@ -379,7 +455,7 @@ public class Game {
     }
 
     public void pauseGame() {
-        currentState = GameState.MAIN_MENU;
+        setGameState(GameState.PAUSE_MENU);
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
 

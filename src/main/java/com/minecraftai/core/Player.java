@@ -692,8 +692,27 @@ public class Player {
     }
 
     public int getHealth() { return health; }
+    public void setHealth(int health) {
+        this.health = health;
+        this.isDead = (health <= 0);
+    }
     public int getMaxHealth() { return maxHealth; }
     public boolean isDead() { return isDead; }
+
+    public float getYaw() { return yaw; }
+    public float getPitch() { return pitch; }
+    public void setYaw(float yaw) { this.yaw = yaw; }
+    public void setPitch(float pitch) { this.pitch = pitch; }
+
+    public void setPosition(float px, float py, float pz) {
+        this.x = px;
+        this.y = py;
+        this.z = pz;
+        this.prevX = px;
+        this.prevY = py;
+        this.prevZ = pz;
+        this.highestYSinceOnGround = py;
+    }
 
     public void takeDamage(int amount) {
         if (isDead) return;

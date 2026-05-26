@@ -14,25 +14,21 @@ import java.nio.FloatBuffer;
 import static org.lwjgl.opengl.GL11.*;
 
 public class FontRenderer {
-    private static final String FONT_PATH = "/assets/misc/ten.ttf";
     private static final String REGULAR_FONT_PATH = "/assets/misc/regular.ttf";
 
     private static final int BITMAP_W = 1024;
     private static final int BITMAP_H = 1024;
-    public static final float FONT_HEIGHT = 32.0f;
+    public static final float FONT_HEIGHT = 18.0f;
     public static final float REGULAR_FONT_HEIGHT = 18.0f;
 
     private static int fontTextureID;
     private static STBTTBakedChar.Buffer charData;
     private static STBTTAlignedQuad alignedQuad;
 
-    private static int regularTextureID;
-    private static STBTTBakedChar.Buffer regularCharData;
-    private static STBTTAlignedQuad regularAlignedQuad;
-
     public static void initFont() {
-        try (InputStream is = FontRenderer.class.getResourceAsStream(FONT_PATH)) {
-            if (is == null) throw new IOException("Nie znaleziono pliku czcionki: " + FONT_PATH);
+        // Load regular.ttf as the sole font
+        try (InputStream is = FontRenderer.class.getResourceAsStream(REGULAR_FONT_PATH)) {
+            if (is == null) throw new IOException("Nie znaleziono pliku czcionki: " + REGULAR_FONT_PATH);
 
             byte[] fontBytes = is.readAllBytes();
             ByteBuffer ttf = BufferUtils.createByteBuffer(fontBytes.length);
@@ -51,32 +47,6 @@ public class FontRenderer {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
             alignedQuad = STBTTAlignedQuad.malloc();
-
-        } catch (IOException e) {
-            throw new RuntimeException("Nie udało się załadować lub zainicjować czcionki: ten.ttf", e);
-        }
-
-        // Load regular.ttf
-        try (InputStream is = FontRenderer.class.getResourceAsStream(REGULAR_FONT_PATH)) {
-            if (is == null) throw new IOException("Nie znaleziono pliku czcionki: " + REGULAR_FONT_PATH);
-
-            byte[] fontBytes = is.readAllBytes();
-            ByteBuffer ttf = BufferUtils.createByteBuffer(fontBytes.length);
-            ttf.put(fontBytes).flip();
-
-            regularCharData = STBTTBakedChar.malloc(96);
-            ByteBuffer bitmap = BufferUtils.createByteBuffer(BITMAP_W * BITMAP_H);
-
-            STBTruetype.stbtt_BakeFontBitmap(ttf, REGULAR_FONT_HEIGHT, bitmap, BITMAP_W, BITMAP_H, 32, regularCharData);
-
-            regularTextureID = glGenTextures();
-            glBindTexture(GL_TEXTURE_2D, regularTextureID);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, BITMAP_W, BITMAP_H, 0, GL_ALPHA, GL_UNSIGNED_BYTE, bitmap);
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-
-            regularAlignedQuad = STBTTAlignedQuad.malloc();
 
         } catch (IOException e) {
             throw new RuntimeException("Nie udało się załadować lub zainicjować czcionki: regular.ttf", e);
@@ -135,42 +105,7 @@ public class FontRenderer {
     }
 
     public static void drawStringRegular(String text, float x, float y) {
-        if (regularCharData == null) return;
-
-        glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, regularTextureID);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            FloatBuffer xPos = stack.floats(x);
-            FloatBuffer yPos = stack.floats(y);
-
-            glBegin(GL_QUADS);
-
-            for (int i = 0; i < text.length(); i++) {
-                char c = text.charAt(i);
-                if (c >= 32 && c < 32 + 96) {
-                    STBTruetype.stbtt_GetBakedQuad(regularCharData, BITMAP_W, BITMAP_H, c - 32, xPos, yPos, regularAlignedQuad, true);
-
-                    float x0 = regularAlignedQuad.x0(); float y0 = regularAlignedQuad.y0();
-                    float x1 = regularAlignedQuad.x1(); float y1 = regularAlignedQuad.y1();
-                    float s0 = regularAlignedQuad.s0(); float t0 = regularAlignedQuad.t0();
-                    float s1 = regularAlignedQuad.s1(); float t1 = regularAlignedQuad.t1();
-
-                    glTexCoord2f(s0, t0); glVertex2f(x0, y0);
-                    glTexCoord2f(s1, t0); glVertex2f(x1, y0);
-                    glTexCoord2f(s1, t1); glVertex2f(x1, y1);
-                    glTexCoord2f(s0, t1); glVertex2f(x0, y1);
-                }
-            }
-
-            glEnd();
-        }
-
-        glDisable(GL_BLEND);
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glDisable(GL_TEXTURE_2D);
+        drawString(text, x, y);
     }
 
     public static float getStringWidth(String text) {
@@ -180,7 +115,7 @@ public class FontRenderer {
             FloatBuffer xPos = stack.floats(0);
             FloatBuffer yPos = stack.floats(0);
 
-            STBTTAlignedQuad q = STBTTAlignedQuad.mallocStack(stack);
+            STBTTAlignedQuad q = STBTTAlignedQuad.malloc(stack);
 
             for (int i = 0; i < text.length(); i++) {
                 char c = text.charAt(i);
@@ -194,22 +129,6 @@ public class FontRenderer {
     }
 
     public static float getStringWidthRegular(String text) {
-        if (regularCharData == null) return 0;
-
-        try (MemoryStack stack = MemoryStack.stackPush()) {
-            FloatBuffer xPos = stack.floats(0);
-            FloatBuffer yPos = stack.floats(0);
-
-            STBTTAlignedQuad q = STBTTAlignedQuad.mallocStack(stack);
-
-            for (int i = 0; i < text.length(); i++) {
-                char c = text.charAt(i);
-                if (c >= 32 && c < 32 + 96) {
-                    STBTruetype.stbtt_GetBakedQuad(regularCharData, BITMAP_W, BITMAP_H, c - 32, xPos, yPos, q, false);
-                }
-            }
-
-            return xPos.get(0);
-        }
+        return getStringWidth(text);
     }
 }

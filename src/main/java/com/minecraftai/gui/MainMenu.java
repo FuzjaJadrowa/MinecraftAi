@@ -1,9 +1,7 @@
 package com.minecraftai.gui;
 
 import com.minecraftai.Game;
-import com.minecraftai.renderer.FontRenderer;
 import com.minecraftai.renderer.TextureLoader;
-import com.minecraftai.core.World;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -18,14 +16,12 @@ public class MainMenu {
     private int logoTextureID;
     private int buttonTextureID;
 
-    private final float[] playButtonRect = { 1280 / 2 - 150, 350, 300, 60 };
-    private final float[] quitButtonRect = { 1280 / 2 - 150, 450, 300, 60 };
-
-    private final float[] sliderRect = new float[4];
-    private final float[] sliderKnobRect = new float[4];
-    private boolean isDraggingSlider = false;
+    private final float[] playButtonRect = new float[4];
+    private final float[] optionsButtonRect = new float[4];
+    private final float[] quitButtonRect = new float[4];
 
     private boolean isPlayHovered = false;
+    private boolean isOptionsHovered = false;
     private boolean isQuitHovered = false;
 
     public MainMenu(Game game) {
@@ -37,43 +33,20 @@ public class MainMenu {
 
     public void handleMouseMove(double x, double y) {
         isPlayHovered = isMouseOver(x, y, playButtonRect);
+        isOptionsHovered = isMouseOver(x, y, optionsButtonRect);
         isQuitHovered = isMouseOver(x, y, quitButtonRect);
-
-        if (isDraggingSlider) {
-            updateSliderValue(x);
-        }
     }
 
     public void handleMouseClick(double x, double y, int button, int action) {
-        if (button == GLFW_MOUSE_BUTTON_LEFT) {
-            if (action == GLFW_PRESS) {
-                if (isPlayHovered) {
-                    if (game.getPlayer() != null) {
-                        game.resumeGame();
-                    } else {
-                        game.startGame();
-                    }
-                } else if (isQuitHovered) {
-                    game.quitGame();
-                } else if (isMouseOver(x, y, sliderRect)) {
-                    isDraggingSlider = true;
-                    updateSliderValue(x);
-                }
-            } else if (action == GLFW_RELEASE) {
-                isDraggingSlider = false;
+        if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+            if (isPlayHovered) {
+                game.enterPlayMenu();
+            } else if (isOptionsHovered) {
+                game.enterOptionsMenu(Game.GameState.MAIN_MENU);
+            } else if (isQuitHovered) {
+                game.quitGame();
             }
         }
-    }
-
-    private void updateSliderValue(double mouseX) {
-        float sliderX = sliderRect[0];
-        float sliderWidth = sliderRect[2];
-
-        float relativeX = Math.max(0, Math.min((float)mouseX - sliderX, sliderWidth));
-        float percentage = relativeX / sliderWidth;
-
-        int newValue = 2 + Math.round(percentage * 30);
-        World.RENDER_DISTANCE = newValue;
     }
 
     public void render() {
@@ -84,102 +57,44 @@ public class MainMenu {
         float currentW = w[0];
         float currentH = h[0];
 
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, backgroundTextureID);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        drawTexturedQuad(0, 0, currentW, currentH);
+        glDisable(GL_TEXTURE_2D);
+
         float logoWidth = 512;
         float logoHeight = 128;
         float logoX = (currentW - logoWidth) / 2;
         float logoY = currentH * 0.15f;
 
-        float buttonWidth = 300;
-        float buttonHeight = 60;
-        float buttonX = (currentW - buttonWidth) / 2;
-        float playY = currentH * 0.50f;
-        float quitY = playY + buttonHeight + 20;
-
-        float sliderY = quitY + buttonHeight + 40;
-        float sliderBarHeight = 10;
-        float knobWidth = 20;
-        float knobHeight = 24;
-
-        playButtonRect[0] = buttonX; playButtonRect[1] = playY; playButtonRect[2] = buttonWidth; playButtonRect[3] = buttonHeight;
-        quitButtonRect[0] = buttonX; quitButtonRect[1] = quitY; quitButtonRect[2] = buttonWidth; quitButtonRect[3] = buttonHeight;
-
-        sliderRect[0] = buttonX;
-        sliderRect[1] = sliderY - (knobHeight - sliderBarHeight) / 2;
-        sliderRect[2] = buttonWidth;
-        sliderRect[3] = knobHeight;
-
         glEnable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-        glBindTexture(GL_TEXTURE_2D, backgroundTextureID);
-        drawTexturedQuad(0, 0, currentW, currentH);
-
         glBindTexture(GL_TEXTURE_2D, logoTextureID);
         drawTexturedQuad(logoX, logoY, logoWidth, logoHeight);
-
         glDisable(GL_TEXTURE_2D);
 
-        drawButton(buttonX, playY, buttonWidth, buttonHeight, "PLAY", isPlayHovered);
+        float buttonWidth = 300;
+        float buttonHeight = 40;
+        float buttonX = (currentW - buttonWidth) / 2;
+        float playY = currentH * 0.45f;
+        float optionsY = playY + buttonHeight + 15;
+        float quitY = optionsY + buttonHeight + 15;
 
-        drawButton(buttonX, quitY, buttonWidth, buttonHeight, "QUIT", isQuitHovered);
+        playButtonRect[0] = buttonX; playButtonRect[1] = playY; playButtonRect[2] = buttonWidth; playButtonRect[3] = buttonHeight;
+        optionsButtonRect[0] = buttonX; optionsButtonRect[1] = optionsY; optionsButtonRect[2] = buttonWidth; optionsButtonRect[3] = buttonHeight;
+        quitButtonRect[0] = buttonX; quitButtonRect[1] = quitY; quitButtonRect[2] = buttonWidth; quitButtonRect[3] = buttonHeight;
 
-        String rdText = "Render Distance: " + World.RENDER_DISTANCE;
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        float textX = buttonX + (buttonWidth - FontRenderer.getStringWidth(rdText)) / 2;
-        float textY = sliderY - FontRenderer.FONT_HEIGHT / 2;
-        FontRenderer.drawString(rdText, textX, textY);
-
-        glColor4f(0.2f, 0.2f, 0.2f, 0.7f);
-        drawSolidQuad(buttonX, sliderY, buttonWidth, sliderBarHeight);
-
-        float currentPercentage = (World.RENDER_DISTANCE - 2) / 30.0f;
-        float knobX = buttonX + (currentPercentage * buttonWidth) - (knobWidth / 2);
-        float knobY = sliderY + (sliderBarHeight / 2) - (knobHeight / 2);
-
-        sliderKnobRect[0] = knobX;
-        sliderKnobRect[1] = knobY;
-        sliderKnobRect[2] = knobWidth;
-        sliderKnobRect[3] = knobHeight;
-
-        glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, buttonTextureID);
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        drawTexturedQuad(knobX, knobY, knobWidth, knobHeight);
-        glDisable(GL_TEXTURE_2D);
+        GuiRenderer.drawButton(buttonX, playY, buttonWidth, buttonHeight, "PLAY", isPlayHovered, buttonTextureID);
+        GuiRenderer.drawButton(buttonX, optionsY, buttonWidth, buttonHeight, "OPTIONS", isOptionsHovered, buttonTextureID);
+        GuiRenderer.drawButton(buttonX, quitY, buttonWidth, buttonHeight, "QUIT", isQuitHovered, buttonTextureID);
 
         glDisable(GL_BLEND);
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
         restore3DRendering();
-    }
-
-    private void drawButton(float x, float y, float w, float h, String text, boolean hovered) {
-        glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, buttonTextureID);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        if (hovered) {
-            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        } else {
-            glColor4f(0.8f, 0.8f, 0.8f, 1.0f);
-        }
-
-        drawTexturedQuad(x, y, w, h);
-        glDisable(GL_TEXTURE_2D);
-
-        float textWidth = FontRenderer.getStringWidth(text);
-        float textX = x + (w - textWidth) / 2;
-        float textY = y + (h + FontRenderer.FONT_HEIGHT) / 2 - 4;
-
-        if (hovered) {
-            glColor4f(1.0f, 1.0f, 0.6f, 1.0f);
-        } else {
-            glColor4f(0.9f, 0.9f, 0.9f, 1.0f);
-        }
-
-        FontRenderer.drawString(text, textX, textY);
     }
 
     private void setup2DRendering() {
@@ -207,15 +122,6 @@ public class MainMenu {
         glTexCoord2f(1, 0); glVertex2f(x + w, y);
         glTexCoord2f(1, 1); glVertex2f(x + w, y + h);
         glTexCoord2f(0, 1); glVertex2f(x, y + h);
-        glEnd();
-    }
-
-    private void drawSolidQuad(float x, float y, float w, float h) {
-        glBegin(GL_QUADS);
-        glVertex2f(x, y);
-        glVertex2f(x + w, y);
-        glVertex2f(x + w, y + h);
-        glVertex2f(x, y + h);
         glEnd();
     }
 

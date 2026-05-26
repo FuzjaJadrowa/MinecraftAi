@@ -19,9 +19,33 @@ public class World {
     public static final double CAVE_SCALE = 0.04;
 
     public static int RENDER_DISTANCE = 12;
+    private long seed;
 
     public World() {
-        this.noiseGen = new PerlinNoise(new Random().nextLong());
+        setSeed(new Random().nextLong());
+    }
+
+    public long getSeed() {
+        return seed;
+    }
+
+    public void setSeed(long seed) {
+        this.seed = seed;
+        this.noiseGen = new PerlinNoise(seed);
+    }
+
+    public Map<String, Chunk> getChunks() {
+        return chunks;
+    }
+
+    private String worldName = null;
+
+    public String getWorldName() {
+        return worldName;
+    }
+
+    public void setWorldName(String name) {
+        this.worldName = name;
     }
 
     public Chunk getOrLoadChunk(int chunkX, int chunkZ) {
@@ -32,6 +56,27 @@ public class World {
         });
 
         if (!chunk.isGenerated()) {
+            if (worldName != null) {
+                byte[] data = WorldSaveManager.loadChunkData(worldName, chunkX, chunkZ);
+                if (data != null) {
+                    int startX = chunkX * Chunk.CHUNK_SIZE_X;
+                    int startZ = chunkZ * Chunk.CHUNK_SIZE_Z;
+                    int idx = 0;
+                    for (int x = 0; x < Chunk.CHUNK_SIZE_X; x++) {
+                        for (int y = 0; y < Chunk.CHUNK_SIZE_Y; y++) {
+                            for (int z = 0; z < Chunk.CHUNK_SIZE_Z; z++) {
+                                int id = data[idx++] & 0xFF;
+                                Block b = WorldSaveManager.createBlockById(id, startX + x, y, startZ + z);
+                                chunk.setBlock(x, y, z, b, false);
+                            }
+                        }
+                    }
+                    chunk.setGenerated(true);
+                    chunk.setModified(true);
+                    chunk.markDirty();
+                    return chunk;
+                }
+            }
             chunk.generate(this);
         }
 

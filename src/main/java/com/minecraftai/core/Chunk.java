@@ -21,8 +21,8 @@ public class Chunk {
     private int displayListIdTransparent = -1;
 
     private boolean needsRebuild = true;
-
     private volatile boolean isGenerated = false;
+    private boolean isModified = false;
 
     public Chunk(int chunkX, int chunkZ) {
         this.worldX = chunkX;
@@ -353,10 +353,31 @@ public class Chunk {
         blocks[x][y][z] = block;
         if (markDirty) {
             this.needsRebuild = true;
+            this.isModified = true;
         }
     }
 
     public void markDirty() {
         this.needsRebuild = true;
+    }
+
+    public boolean isModified() {
+        return isModified;
+    }
+
+    public void setModified(boolean modified) {
+        this.isModified = modified;
+    }
+
+    public int getWorldX() {
+        return worldX;
+    }
+
+    public int getWorldZ() {
+        return worldZ;
+    }
+
+    public void setGenerated(boolean generated) {
+        this.isGenerated = generated;
     }
 }
