@@ -220,6 +220,9 @@ public class WorldSaveManager {
             case "Log": return 7;
             case "Bedrock": return 8;
             case "FlowingWater": return 9;
+            case "Planks": return 10;
+            case "CraftingTable": return 11;
+            case "Furnace": return 12;
             default: return 0;
         }
     }
@@ -235,6 +238,9 @@ public class WorldSaveManager {
             case 7: return new Log(x, y, z);
             case 8: return new Bedrock(x, y, z);
             case 9: return new FlowingWater(x, y, z, 7);
+            case 10: return new Planks(x, y, z);
+            case 11: return new CraftingTable(x, y, z);
+            case 12: return new Furnace(x, y, z);
             default: return null;
         }
     }

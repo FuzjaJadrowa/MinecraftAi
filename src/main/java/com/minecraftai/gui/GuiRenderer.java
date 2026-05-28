@@ -10,6 +10,41 @@ import static org.lwjgl.opengl.GL11.*;
 public class GuiRenderer {
 
     public static void draw3DBlock(float centerX, float centerY, float size, ItemType type, float currentW, float currentH) {
+        if (type == ItemType.STICK) {
+            glMatrixMode(GL_PROJECTION);
+            glPushMatrix();
+            glLoadIdentity();
+            glOrtho(0, currentW, currentH, 0, -100.0f, 100.0f);
+
+            glMatrixMode(GL_MODELVIEW);
+            glPushMatrix();
+            glLoadIdentity();
+
+            glEnable(GL_TEXTURE_2D);
+            glBindTexture(GL_TEXTURE_2D, type.getTextureId());
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+            float r = size * 0.4f;
+            glBegin(GL_QUADS);
+            glTexCoord2f(0.0f, 0.0f); glVertex2f(centerX - r, centerY - r);
+            glTexCoord2f(1.0f, 0.0f); glVertex2f(centerX + r, centerY - r);
+            glTexCoord2f(1.0f, 1.0f); glVertex2f(centerX + r, centerY + r);
+            glTexCoord2f(0.0f, 1.0f); glVertex2f(centerX - r, centerY + r);
+            glEnd();
+
+            glDisable(GL_BLEND);
+            glDisable(GL_TEXTURE_2D);
+
+            glMatrixMode(GL_MODELVIEW);
+            glPopMatrix();
+
+            glMatrixMode(GL_PROJECTION);
+            glPopMatrix();
+            return;
+        }
+
         float r = size * 0.23f;
 
         glMatrixMode(GL_PROJECTION);
@@ -99,6 +134,8 @@ public class GuiRenderer {
         switch (type) {
             case DIRT:
                 return 1;
+            case STONE:
+                return 2;
             case COBBLESTONE:
                 return 3;
             case LOG:
@@ -106,6 +143,26 @@ public class GuiRenderer {
                     return 5;
                 } else {
                     return 4;
+                }
+            case PLANKS:
+                return 9;
+            case CRAFTING_TABLE:
+                if (face == Block.Face.TOP) {
+                    return 10;
+                } else if (face == Block.Face.BOTTOM) {
+                    return 9;
+                } else if (face == Block.Face.NORTH) { // front representation
+                    return 12;
+                } else {
+                    return 11;
+                }
+            case FURNACE:
+                if (face == Block.Face.TOP || face == Block.Face.BOTTOM) {
+                    return 13;
+                } else if (face == Block.Face.NORTH) { // front representation
+                    return 15;
+                } else {
+                    return 14;
                 }
             default:
                 return 0;

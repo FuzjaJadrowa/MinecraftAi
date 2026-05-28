@@ -3,6 +3,7 @@ package com.minecraftai;
 import com.minecraftai.core.*;
 import com.minecraftai.gui.*;
 import com.minecraftai.renderer.*;
+import com.minecraftai.blocks.*;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.opengl.GL;
@@ -24,7 +25,9 @@ public class Game {
         PAUSE_MENU,
         IN_GAME,
         INVENTORY,
-        DEATH
+        DEATH,
+        CRAFTING_TABLE,
+        FURNACE
     }
 
     private long window;
@@ -36,6 +39,8 @@ public class Game {
     private PauseMenu pauseMenu;
     private Hotbar hotbar;
     private InventoryMenu inventoryMenu;
+    private CraftingTableMenu craftingTableMenu;
+    private FurnaceMenu furnaceMenu;
     private DeathMenu deathMenu;
     private GameState currentState;
     private double lastX, lastY;
@@ -115,6 +120,7 @@ public class Game {
 
         mainMenu = new MainMenu(this);
         FontRenderer.initFont();
+        RecipeManager.loadRecipes();
         WorldSaveManager.loadOptions();
         playMenu = new PlayMenu(this);
         optionsMenu = new OptionsMenu(this);
@@ -155,6 +161,14 @@ public class Game {
                 inventoryMenu.onClose();
                 currentState = GameState.IN_GAME;
                 glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            } else if (currentState == GameState.CRAFTING_TABLE) {
+                craftingTableMenu.onClose();
+                currentState = GameState.IN_GAME;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            } else if (currentState == GameState.FURNACE) {
+                furnaceMenu.onClose();
+                currentState = GameState.IN_GAME;
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
             }
         }
 
@@ -186,6 +200,18 @@ public class Game {
                     currentState = GameState.IN_GAME;
                     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
                 }
+            } else if (currentState == GameState.CRAFTING_TABLE) {
+                if (key == GLFW_KEY_E) {
+                    craftingTableMenu.onClose();
+                    currentState = GameState.IN_GAME;
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                }
+            } else if (currentState == GameState.FURNACE) {
+                if (key == GLFW_KEY_E) {
+                    furnaceMenu.onClose();
+                    currentState = GameState.IN_GAME;
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                }
             }
         }
     }
@@ -210,6 +236,10 @@ public class Game {
             pauseMenu.handleMouseMove(xpos, ypos);
         } else if (currentState == GameState.INVENTORY) {
             inventoryMenu.handleMouseMove(xpos, ypos);
+        } else if (currentState == GameState.CRAFTING_TABLE) {
+            craftingTableMenu.handleMouseMove(xpos, ypos);
+        } else if (currentState == GameState.FURNACE) {
+            furnaceMenu.handleMouseMove(xpos, ypos);
         } else if (currentState == GameState.DEATH) {
             deathMenu.handleMouseMove(xpos, ypos);
         }
@@ -226,8 +256,25 @@ public class Game {
             pauseMenu.handleMouseClick(lastX, lastY, button, action);
         } else if (currentState == GameState.INVENTORY) {
             inventoryMenu.handleMouseClick(lastX, lastY, button, action);
+        } else if (currentState == GameState.CRAFTING_TABLE) {
+            craftingTableMenu.handleMouseClick(lastX, lastY, button, action);
+        } else if (currentState == GameState.FURNACE) {
+            furnaceMenu.handleMouseClick(lastX, lastY, button, action);
         } else if (currentState == GameState.DEATH) {
             deathMenu.handleMouseClick(lastX, lastY, button, action);
+        } else if (currentState == GameState.IN_GAME) {
+            if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+                Block target = player.getTargetBlock(world, 4.5f);
+                if (target instanceof CraftingTable) {
+                    currentState = GameState.CRAFTING_TABLE;
+                    craftingTableMenu.setBlock((CraftingTable) target);
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                } else if (target instanceof Furnace) {
+                    currentState = GameState.FURNACE;
+                    furnaceMenu.setBlock((Furnace) target);
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                }
+            }
         }
     }
 
@@ -252,20 +299,27 @@ public class Game {
                 fpsTimer -= 1.0;
             }
 
-            if (currentState == GameState.IN_GAME || currentState == GameState.INVENTORY) {
+            boolean isTickingState = (currentState == GameState.IN_GAME || 
+                                      currentState == GameState.INVENTORY || 
+                                      currentState == GameState.CRAFTING_TABLE || 
+                                      currentState == GameState.FURNACE);
+            if (isTickingState) {
                 timeOfDay += deltaTime * 20.0f;
                 if (timeOfDay >= 24000.0f) {
                     timeOfDay -= 24000.0f;
                 }
             }
 
-            if (currentState == GameState.IN_GAME) {
+            if (isTickingState) {
                 accumulator += deltaTime;
                 while (accumulator >= PHYSICS_STEP) {
-                    player.handleInput(window, isCommandConsoleOpen);
-                    player.update(window, PHYSICS_STEP, isCommandConsoleOpen);
+                    if (currentState == GameState.IN_GAME) {
+                        player.handleInput(window, isCommandConsoleOpen);
+                        player.update(window, PHYSICS_STEP, isCommandConsoleOpen);
+                    }
                     world.updateDroppedItems((float) PHYSICS_STEP, player);
                     world.updateWater(PHYSICS_STEP);
+                    world.updateFurnaces(PHYSICS_STEP);
                     accumulator -= PHYSICS_STEP;
                 }
                 if (player.isDead()) {
@@ -283,6 +337,12 @@ public class Game {
             } else if (currentState == GameState.INVENTORY) {
                 renderGame(1.0f);
                 inventoryMenu.render(window);
+            } else if (currentState == GameState.CRAFTING_TABLE) {
+                renderGame(1.0f);
+                craftingTableMenu.render(window);
+            } else if (currentState == GameState.FURNACE) {
+                renderGame(1.0f);
+                furnaceMenu.render(window);
             } else if (currentState == GameState.DEATH) {
                 renderGame(1.0f);
                 deathMenu.render(window);
@@ -485,6 +545,12 @@ public class Game {
         inventoryMenu = new InventoryMenu(player);
         inventoryMenu.init();
 
+        craftingTableMenu = new CraftingTableMenu(player);
+        craftingTableMenu.init();
+
+        furnaceMenu = new FurnaceMenu(player);
+        furnaceMenu.init();
+
         deathMenu = new DeathMenu(this, player);
         deathMenu.init();
 
@@ -499,6 +565,8 @@ public class Game {
         player = null;
         hotbar = null;
         inventoryMenu = null;
+        craftingTableMenu = null;
+        furnaceMenu = null;
         deathMenu = null;
         setGameState(GameState.MAIN_MENU);
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);

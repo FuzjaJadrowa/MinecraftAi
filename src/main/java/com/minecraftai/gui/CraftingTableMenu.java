@@ -4,32 +4,46 @@ import com.minecraftai.core.Player;
 import com.minecraftai.core.ItemStack;
 import com.minecraftai.core.ItemType;
 import com.minecraftai.core.RecipeManager;
+import com.minecraftai.blocks.CraftingTable;
 import com.minecraftai.renderer.TextureLoader;
 import com.minecraftai.renderer.FontRenderer;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 
-public class InventoryMenu {
+public class CraftingTableMenu {
     private Player player;
-    private int inventoryTextureID;
+    private CraftingTable block;
+    private int guiTextureID;
     private ItemStack cursorStack = null;
     private double mouseX, mouseY;
 
-    private ItemStack[] craftingGrid = new ItemStack[4];
+    private ItemStack[] craftingGrid = new ItemStack[9];
     private ItemStack craftingOutput = null;
 
-    public InventoryMenu(Player player) {
+    public CraftingTableMenu(Player player) {
         this.player = player;
     }
 
+    public void setBlock(CraftingTable block) {
+        this.block = block;
+    }
+
     public void init() {
-        inventoryTextureID = TextureLoader.loadTexture("/assets/textures/gui/inventory.png");
+        guiTextureID = TextureLoader.loadTexture("/assets/textures/gui/crafting_table.png");
     }
 
     public void handleMouseMove(double x, double y) {
         this.mouseX = x;
         this.mouseY = y;
+    }
+
+    public ItemStack getCursorStack() {
+        return cursorStack;
+    }
+
+    public void setCursorStack(ItemStack stack) {
+        this.cursorStack = stack;
     }
 
     public void handleMouseClick(double mouseX, double mouseY, int button, int action) {
@@ -38,22 +52,22 @@ public class InventoryMenu {
         if (clickedSlot == -1) return;
 
         if (button == GLFW_MOUSE_BUTTON_LEFT) {
-            if (clickedSlot == 40) { // Crafting output
+            if (clickedSlot == 45) { // Output slot
                 if (craftingOutput != null) {
                     if (cursorStack == null) {
                         cursorStack = craftingOutput;
                         craftingOutput = null;
                         consumeIngredients();
-                        craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 2, 2);
+                        craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 3, 3);
                     } else if (cursorStack.getType() == craftingOutput.getType() &&
                                cursorStack.getCount() + craftingOutput.getCount() <= ItemStack.MAX_STACK_SIZE) {
                         cursorStack.addAmount(craftingOutput.getCount());
                         craftingOutput = null;
                         consumeIngredients();
-                        craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 2, 2);
+                        craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 3, 3);
                     }
                 }
-            } else if (clickedSlot >= 36 && clickedSlot < 40) { // Crafting grid
+            } else if (clickedSlot >= 36 && clickedSlot < 45) { // Crafting grid
                 int gridIdx = clickedSlot - 36;
                 ItemStack gridStack = craftingGrid[gridIdx];
 
@@ -76,8 +90,8 @@ public class InventoryMenu {
                         cursorStack = gridStack;
                     }
                 }
-                craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 2, 2);
-            } else { // Regular inventory
+                craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 3, 3);
+            } else { // Player inventory slots 0-35
                 ItemStack[] inventory = player.getInventory();
                 ItemStack slotStack = inventory[clickedSlot];
 
@@ -102,22 +116,22 @@ public class InventoryMenu {
                 }
             }
         } else if (button == GLFW_MOUSE_BUTTON_RIGHT) {
-            if (clickedSlot == 40) { // Crafting output behaves like left click
+            if (clickedSlot == 45) { // Output slot behaves like left click
                 if (craftingOutput != null) {
                     if (cursorStack == null) {
                         cursorStack = craftingOutput;
                         craftingOutput = null;
                         consumeIngredients();
-                        craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 2, 2);
+                        craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 3, 3);
                     } else if (cursorStack.getType() == craftingOutput.getType() &&
                                cursorStack.getCount() + craftingOutput.getCount() <= ItemStack.MAX_STACK_SIZE) {
                         cursorStack.addAmount(craftingOutput.getCount());
                         craftingOutput = null;
                         consumeIngredients();
-                        craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 2, 2);
+                        craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 3, 3);
                     }
                 }
-            } else if (clickedSlot >= 36 && clickedSlot < 40) { // Crafting grid
+            } else if (clickedSlot >= 36 && clickedSlot < 45) { // Crafting grid
                 int gridIdx = clickedSlot - 36;
                 ItemStack gridStack = craftingGrid[gridIdx];
 
@@ -151,8 +165,8 @@ public class InventoryMenu {
                         cursorStack = gridStack;
                     }
                 }
-                craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 2, 2);
-            } else { // Regular inventory
+                craftingOutput = RecipeManager.findMatchingRecipe(craftingGrid, 3, 3);
+            } else { // Player inventory slots 0-35
                 ItemStack[] inventory = player.getInventory();
                 ItemStack slotStack = inventory[clickedSlot];
 
@@ -191,7 +205,7 @@ public class InventoryMenu {
     }
 
     private void consumeIngredients() {
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 9; i++) {
             ItemStack stack = craftingGrid[i];
             if (stack != null) {
                 stack.setCount(stack.getCount() - 1);
@@ -210,7 +224,7 @@ public class InventoryMenu {
             }
             cursorStack = null;
         }
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 9; i++) {
             ItemStack stack = craftingGrid[i];
             if (stack != null) {
                 boolean fit = player.addItemStack(stack);
@@ -245,7 +259,7 @@ public class InventoryMenu {
 
         glEnable(GL_TEXTURE_2D);
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        glBindTexture(GL_TEXTURE_2D, inventoryTextureID);
+        glBindTexture(GL_TEXTURE_2D, guiTextureID);
 
         glBegin(GL_QUADS);
         glTexCoord2f(0.0f, 0.0f); glVertex2f(invX, invY);
@@ -256,17 +270,16 @@ public class InventoryMenu {
 
         glDisable(GL_TEXTURE_2D);
 
-        float previewCenterX = invX + 51.0f * guiScale;
-        float previewCenterY = invY + 54.0f * guiScale;
-        player.renderPlayerModelGUI(previewCenterX, previewCenterY, 20.0f * guiScale, mouseX, mouseY, currentW, currentH);
+        // Draw title
+        glColor4f(0.3f, 0.3f, 0.3f, 1.0f);
+        FontRenderer.drawStringRegular("Crafting", invX + 28.0f * guiScale, invY + 6.0f * guiScale);
+        FontRenderer.drawStringRegular("Inventory", invX + 8.0f * guiScale, invY + 72.0f * guiScale);
 
-        setup2DRendering(windowHandle);
-
+        // Draw inventory slots
         ItemStack[] inventory = player.getInventory();
-        float slotSize = 18.0f * guiScale;
         float innerSize = 16.0f * guiScale;
 
-        for (int i = 0; i < inventory.length; i++) {
+        for (int i = 0; i < 36; i++) {
             ItemStack stack = inventory[i];
             if (stack == null) continue;
 
@@ -283,122 +296,59 @@ public class InventoryMenu {
                 slotY = invY + (84.0f + row * 18.0f) * guiScale;
             }
 
-            float itemX = slotX + 1.0f * guiScale;
-            float itemY = slotY + 1.0f * guiScale;
-
-            float centerX = itemX + innerSize / 2.0f;
-            float centerY = itemY + innerSize / 2.0f;
-
-            GuiRenderer.draw3DBlock(centerX, centerY, innerSize, stack.getType(), currentW, currentH);
-
-            int count = stack.getCount();
-            if (count > 1) {
-                String countStr = String.valueOf(count);
-                float textWidth = FontRenderer.getStringWidthRegular(countStr);
-
-                float textX = (itemX + innerSize) - textWidth - 2;
-                float textY = (itemY + innerSize) - 2;
-
-                glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                glColor4f(0.1f, 0.1f, 0.1f, 1.0f);
-                FontRenderer.drawStringRegular(countStr, textX + 1, textY + 1);
-
-                glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-                FontRenderer.drawStringRegular(countStr, textX, textY);
-            }
+            drawItem(stack, slotX + 1.0f * guiScale, slotY + 1.0f * guiScale, innerSize, currentW, currentH);
         }
 
-        // Draw 2x2 crafting grid
-        for (int r = 0; r < 2; r++) {
-            for (int c = 0; c < 2; c++) {
-                ItemStack stack = craftingGrid[r * 2 + c];
+        // Draw 3x3 crafting grid
+        for (int r = 0; r < 3; r++) {
+            for (int c = 0; c < 3; c++) {
+                ItemStack stack = craftingGrid[r * 3 + c];
                 if (stack == null) continue;
 
-                float slotX = invX + (98.0f + c * 18.0f) * guiScale;
-                float slotY = invY + (18.0f + r * 18.0f) * guiScale;
+                float slotX = invX + (30.0f + c * 18.0f) * guiScale;
+                float slotY = invY + (17.0f + r * 18.0f) * guiScale;
 
-                float itemX = slotX + 1.0f * guiScale;
-                float itemY = slotY + 1.0f * guiScale;
-                float centerX = itemX + innerSize / 2.0f;
-                float centerY = itemY + innerSize / 2.0f;
-
-                GuiRenderer.draw3DBlock(centerX, centerY, innerSize, stack.getType(), currentW, currentH);
-
-                int count = stack.getCount();
-                if (count > 1) {
-                    String countStr = String.valueOf(count);
-                    float textWidth = FontRenderer.getStringWidthRegular(countStr);
-                    float textX = (itemX + innerSize) - textWidth - 2;
-                    float textY = (itemY + innerSize) - 2;
-
-                    glEnable(GL_BLEND);
-                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                    glColor4f(0.1f, 0.1f, 0.1f, 1.0f);
-                    FontRenderer.drawStringRegular(countStr, textX + 1, textY + 1);
-
-                    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-                    FontRenderer.drawStringRegular(countStr, textX, textY);
-                }
+                drawItem(stack, slotX + 1.0f * guiScale, slotY + 1.0f * guiScale, innerSize, currentW, currentH);
             }
         }
 
         // Draw crafting output
         if (craftingOutput != null) {
-            float slotX = invX + 154.0f * guiScale;
-            float slotY = invY + 28.0f * guiScale;
-
-            float itemX = slotX + 1.0f * guiScale;
-            float itemY = slotY + 1.0f * guiScale;
-            float centerX = itemX + innerSize / 2.0f;
-            float centerY = itemY + innerSize / 2.0f;
-
-            GuiRenderer.draw3DBlock(centerX, centerY, innerSize, craftingOutput.getType(), currentW, currentH);
-
-            int count = craftingOutput.getCount();
-            if (count > 1) {
-                String countStr = String.valueOf(count);
-                float textWidth = FontRenderer.getStringWidthRegular(countStr);
-                float textX = (itemX + innerSize) - textWidth - 2;
-                float textY = (itemY + innerSize) - 2;
-
-                glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                glColor4f(0.1f, 0.1f, 0.1f, 1.0f);
-                FontRenderer.drawStringRegular(countStr, textX + 1, textY + 1);
-
-                glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-                FontRenderer.drawStringRegular(countStr, textX, textY);
-            }
+            float slotX = invX + 124.0f * guiScale;
+            float slotY = invY + 35.0f * guiScale;
+            drawItem(craftingOutput, slotX + 1.0f * guiScale, slotY + 1.0f * guiScale, innerSize, currentW, currentH);
         }
 
+        // Draw floating cursor stack
         if (cursorStack != null) {
             float floatSize = 16.0f * guiScale;
-            float centerX = (float) mouseX;
-            float centerY = (float) mouseY;
-
-            GuiRenderer.draw3DBlock(centerX, centerY, floatSize, cursorStack.getType(), currentW, currentH);
-
-            int count = cursorStack.getCount();
-            if (count > 1) {
-                String countStr = String.valueOf(count);
-                float textWidth = FontRenderer.getStringWidthRegular(countStr);
-
-                float textX = centerX + (floatSize / 2.0f) - textWidth - 2;
-                float textY = centerY + (floatSize / 2.0f) - 2;
-
-                glEnable(GL_BLEND);
-                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-                glColor4f(0.1f, 0.1f, 0.1f, 1.0f);
-                FontRenderer.drawStringRegular(countStr, textX + 1, textY + 1);
-
-                glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-                FontRenderer.drawStringRegular(countStr, textX, textY);
-            }
+            drawItem(cursorStack, (float) mouseX - floatSize / 2.0f, (float) mouseY - floatSize / 2.0f, floatSize, currentW, currentH);
         }
 
         glDisable(GL_BLEND);
         restore3DRendering();
+    }
+
+    private void drawItem(ItemStack stack, float itemX, float itemY, float size, float currentW, float currentH) {
+        float centerX = itemX + size / 2.0f;
+        float centerY = itemY + size / 2.0f;
+        GuiRenderer.draw3DBlock(centerX, centerY, size, stack.getType(), currentW, currentH);
+
+        int count = stack.getCount();
+        if (count > 1) {
+            String countStr = String.valueOf(count);
+            float textWidth = FontRenderer.getStringWidthRegular(countStr);
+            float textX = (itemX + size) - textWidth - 2;
+            float textY = (itemY + size) - 2;
+
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glColor4f(0.1f, 0.1f, 0.1f, 1.0f);
+            FontRenderer.drawStringRegular(countStr, textX + 1, textY + 1);
+
+            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+            FontRenderer.drawStringRegular(countStr, textX, textY);
+        }
     }
 
     private int getClickedSlot(double mouseX, double mouseY) {
@@ -416,43 +366,42 @@ public class InventoryMenu {
 
         float slotSize = 18.0f * guiScale;
 
+        // Player hotbar (0-8)
         for (int i = 0; i < 9; i++) {
             float slotX = invX + (8.0f + i * 18.0f) * guiScale;
             float slotY = invY + 142.0f * guiScale;
-
             if (mouseX >= slotX && mouseX < slotX + slotSize && mouseY >= slotY && mouseY < slotY + slotSize) {
                 return i;
             }
         }
 
+        // Player inventory (9-35)
         for (int i = 9; i < 36; i++) {
             int col = (i - 9) % 9;
             int row = (i - 9) / 9;
             float slotX = invX + (8.0f + col * 18.0f) * guiScale;
             float slotY = invY + (84.0f + row * 18.0f) * guiScale;
-
             if (mouseX >= slotX && mouseX < slotX + slotSize && mouseY >= slotY && mouseY < slotY + slotSize) {
                 return i;
             }
         }
 
-        // 2x2 Crafting Grid (36-39)
-        for (int r = 0; r < 2; r++) {
-            for (int c = 0; c < 2; c++) {
-                float slotX = invX + (98.0f + c * 18.0f) * guiScale;
-                float slotY = invY + (18.0f + r * 18.0f) * guiScale;
-
+        // 3x3 Crafting grid (36-44)
+        for (int r = 0; r < 3; r++) {
+            for (int c = 0; c < 3; c++) {
+                float slotX = invX + (30.0f + c * 18.0f) * guiScale;
+                float slotY = invY + (17.0f + r * 18.0f) * guiScale;
                 if (mouseX >= slotX && mouseX < slotX + slotSize && mouseY >= slotY && mouseY < slotY + slotSize) {
-                    return 36 + r * 2 + c;
+                    return 36 + r * 3 + c;
                 }
             }
         }
 
-        // Crafting Output (40)
-        float outX = invX + 154.0f * guiScale;
-        float outY = invY + 28.0f * guiScale;
+        // Output slot (45)
+        float outX = invX + 124.0f * guiScale;
+        float outY = invY + 35.0f * guiScale;
         if (mouseX >= outX && mouseX < outX + slotSize && mouseY >= outY && mouseY < outY + slotSize) {
-            return 40;
+            return 45;
         }
 
         return -1;

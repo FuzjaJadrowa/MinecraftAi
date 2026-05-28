@@ -19,7 +19,15 @@ public class TextureAtlas {
         "/assets/textures/block/log_top.png",
         "/assets/textures/block/leaves.png",
         "/assets/textures/block/water.png",
-        "/assets/textures/block/bedrock.png"
+        "/assets/textures/block/bedrock.png",
+        "/assets/textures/block/planks.png",
+        "/assets/textures/block/crafting_table_top.png",
+        "/assets/textures/block/crafting_table_side.png",
+        "/assets/textures/block/crafting_table_front.png",
+        "/assets/textures/block/furnace_top.png",
+        "/assets/textures/block/furnace_side.png",
+        "/assets/textures/block/furnace_front.png",
+        "/assets/textures/block/furnace_front_on.png"
     };
 
     private static int atlasTextureID = 0;

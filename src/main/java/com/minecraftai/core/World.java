@@ -2,6 +2,7 @@ package com.minecraftai.core;
 
 import com.minecraftai.blocks.Water;
 import com.minecraftai.blocks.FlowingWater;
+import com.minecraftai.blocks.Furnace;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -74,6 +75,9 @@ public class World {
                                 chunk.setBlock(x, y, z, b, false);
                                 if (b instanceof Water || b instanceof FlowingWater) {
                                     queueWaterUpdate(startX + x, y, startZ + z);
+                                }
+                                if (b instanceof Furnace) {
+                                    queueFurnaceUpdate(startX + x, y, startZ + z);
                                 }
                             }
                         }
@@ -190,9 +194,18 @@ public class World {
         int localZ = globalZ % Chunk.CHUNK_SIZE_Z;
         if (localZ < 0) localZ += Chunk.CHUNK_SIZE_Z;
 
+        Block oldBlock = chunk.getBlock(localX, globalY, localZ);
+        if (oldBlock instanceof Furnace) {
+            removeFurnaceUpdate(globalX, globalY, globalZ);
+            dropFurnaceContents(globalX, globalY, globalZ, (Furnace) oldBlock);
+        }
+
         chunk.setBlock(localX, globalY, localZ, block, true);
 
-        // Queue water updates for this block and its 6 neighbors
+        if (block instanceof Furnace) {
+            queueFurnaceUpdate(globalX, globalY, globalZ);
+        }
+
         queueWaterUpdate(globalX, globalY, globalZ);
         queueWaterUpdate(globalX - 1, globalY, globalZ);
         queueWaterUpdate(globalX + 1, globalY, globalZ);
@@ -247,6 +260,32 @@ public class World {
         return noiseGen.noise(x * CAVE_SCALE, y * CAVE_SCALE * 2.0, z * CAVE_SCALE);
     }
 
+    public boolean isCave(double x, double y, double z, int surfaceHeight) {
+        if (y <= 4) {
+            return false;
+        }
+        if (y > surfaceHeight) {
+            return false;
+        }
+
+        double scale = 0.025;
+        double n1 = noiseGen.noise(x * scale, y * (scale * 1.2), z * scale);
+        double n2 = noiseGen.noise(x * scale + 2000.0, y * (scale * 1.2) + 5000.0, z * scale - 3000.0);
+
+        double val = n1 * n1 + n2 * n2;
+        double threshold = 0.055;
+
+        if (y >= surfaceHeight - 4) {
+            double maskNoise = noiseGen.noise(x * 0.01, z * 0.01);
+            if (maskNoise < 0.2) {
+                return false;
+            }
+            threshold = 0.04;
+        }
+
+        return val < threshold;
+    }
+
     public float getColumnLightFactor(int x, int y, int z) {
         if (y < 0) return 0.2f;
         if (y >= Chunk.CHUNK_SIZE_Y) return 1.0f;
@@ -274,10 +313,63 @@ public class World {
                 }
             }
             if (totalBlockage >= 0.8f) {
-                return 0.2f;
+                break;
             }
         }
-        return Math.max(0.2f, 1.0f - totalBlockage);
+        float skyLight = Math.max(0.2f, 1.0f - totalBlockage);
+
+        float furnaceLight = 0.0f;
+        for (BlockPos pos : activeFurnaces) {
+            int dx = Math.abs(pos.x - x);
+            int dy = Math.abs(pos.y - y);
+            int dz = Math.abs(pos.z - z);
+            int dist = dx + dy + dz;
+            if (dist <= 3) {
+                Block b = getBlockAt(pos.x, pos.y, pos.z);
+                if (b instanceof Furnace && ((Furnace) b).isLit()) {
+                    float val = 1.0f - dist * 0.25f;
+                    if (val > furnaceLight) {
+                        furnaceLight = val;
+                    }
+                }
+            }
+        }
+        return Math.max(skyLight, furnaceLight);
+    }
+
+    private final java.util.Set<BlockPos> activeFurnaces = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public void queueFurnaceUpdate(int x, int y, int z) {
+        activeFurnaces.add(new BlockPos(x, y, z));
+    }
+
+    public void removeFurnaceUpdate(int x, int y, int z) {
+        activeFurnaces.remove(new BlockPos(x, y, z));
+    }
+
+    public void updateFurnaces(double dt) {
+        java.util.List<BlockPos> toRemove = new ArrayList<>();
+        for (BlockPos pos : activeFurnaces) {
+            Block b = getBlockAt(pos.x, pos.y, pos.z);
+            if (b instanceof Furnace) {
+                ((Furnace) b).update(this, dt);
+            } else {
+                toRemove.add(pos);
+            }
+        }
+        activeFurnaces.removeAll(toRemove);
+    }
+
+    private void dropFurnaceContents(int x, int y, int z, Furnace furnace) {
+        if (furnace.getInput() != null) {
+            spawnDroppedItem(x + 0.5f, y + 0.5f, z + 0.5f, furnace.getInput().getType());
+        }
+        if (furnace.getFuel() != null) {
+            spawnDroppedItem(x + 0.5f, y + 0.5f, z + 0.5f, furnace.getFuel().getType());
+        }
+        if (furnace.getOutput() != null) {
+            spawnDroppedItem(x + 0.5f, y + 0.5f, z + 0.5f, furnace.getOutput().getType());
+        }
     }
 
     public void updateWater(double dt) {
@@ -297,7 +389,6 @@ public class World {
         for (BlockPos pos : toProcess) {
             Block current = getBlockAt(pos.x, pos.y, pos.z);
             if (current instanceof Water) {
-                // Standing/source water block (level 8)
                 Block above = getBlockAt(pos.x, pos.y + 1, pos.z);
                 boolean isSource = (pos.y >= WATER_LEVEL) || !(above instanceof Water || above instanceof FlowingWater);
                 if (isSource) {
@@ -307,12 +398,10 @@ public class World {
                     if (targetLevel == 0) {
                         removeBlock(pos.x, pos.y, pos.z);
                     } else if (targetLevel < 8) {
-                        // Change standing water to flowing water of target level
                         FlowingWater flowing = new FlowingWater(pos.x, pos.y, pos.z, targetLevel);
                         setBlockAt(pos.x, pos.y, pos.z, flowing);
                         spreadWater(pos.x, pos.y, pos.z, targetLevel);
                     } else {
-                        // Remains standing water
                         spreadWater(pos.x, pos.y, pos.z, 8);
                     }
                 }
@@ -322,7 +411,6 @@ public class World {
                 if (targetLevel == 0) {
                     removeBlock(pos.x, pos.y, pos.z);
                 } else if (targetLevel == 8) {
-                    // Turn into standing water
                     Water water = new Water(pos.x, pos.y, pos.z);
                     setBlockAt(pos.x, pos.y, pos.z, water);
                     spreadWater(pos.x, pos.y, pos.z, 8);

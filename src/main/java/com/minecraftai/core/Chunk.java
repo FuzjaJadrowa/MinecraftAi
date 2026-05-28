@@ -76,12 +76,9 @@ public class Chunk {
                         continue;
                     }
 
-                    if (y < World.BASE_Y - 5) {
-                        double caveNoise = world.getCaveNoise(globalX, y, globalZ);
-                        if (caveNoise > 0.65) {
-                            blocks[x][y][z] = null;
-                            continue;
-                        }
+                    if (world.isCave(globalX, y, globalZ, surfaceHeight)) {
+                        blocks[x][y][z] = null;
+                        continue;
                     }
 
                     if (y == surfaceHeight) {

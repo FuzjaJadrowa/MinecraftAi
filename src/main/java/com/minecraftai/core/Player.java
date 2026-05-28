@@ -1,10 +1,6 @@
 package com.minecraftai.core;
 
-import com.minecraftai.blocks.Cobblestone;
-import com.minecraftai.blocks.Dirt;
-import com.minecraftai.blocks.Log;
-import com.minecraftai.blocks.Water;
-import com.minecraftai.blocks.FlowingWater;
+import com.minecraftai.blocks.*;
 import com.minecraftai.renderer.TextureLoader;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -72,7 +68,13 @@ public class Player {
     public void handleInput(long window, boolean noInput) {
         if (isDead || noInput) return;
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
-            tryPlaceBlock(world);
+            Block target = getTargetBlock(world, 4.5f);
+            if (target instanceof CraftingTable || target instanceof Furnace) {
+                // Interacting with a block, do not try to place a block on it.
+                // The menu opening is handled by the mouse click callback in Game.java.
+            } else {
+                tryPlaceBlock(world);
+            }
         }
     }
 
@@ -654,8 +656,20 @@ public class Player {
                         case COBBLESTONE:
                             newBlock = new Cobblestone(prevX, prevY, prevZ);
                             break;
+                        case STONE:
+                            newBlock = new Stone(prevX, prevY, prevZ);
+                            break;
                         case LOG:
                             newBlock = new Log(prevX, prevY, prevZ);
+                            break;
+                        case PLANKS:
+                            newBlock = new Planks(prevX, prevY, prevZ);
+                            break;
+                        case CRAFTING_TABLE:
+                            newBlock = new CraftingTable(prevX, prevY, prevZ);
+                            break;
+                        case FURNACE:
+                            newBlock = new Furnace(prevX, prevY, prevZ, getFacingDirection());
                             break;
                     }
 
@@ -670,7 +684,6 @@ public class Player {
                     if (heldStack.getCount() <= 0) {
                         inventory[selectedSlot] = null;
                     }
-
                     return;
                 }
 
@@ -678,6 +691,19 @@ public class Player {
                 prevY = currentBlockY;
                 prevZ = currentBlockZ;
             }
+        }
+    }
+
+    private Block.Face getFacingDirection() {
+        float normalizedYaw = (yaw % 360 + 360) % 360;
+        if (normalizedYaw >= 315 || normalizedYaw < 45) {
+            return Block.Face.SOUTH;
+        } else if (normalizedYaw >= 45 && normalizedYaw < 135) {
+            return Block.Face.WEST;
+        } else if (normalizedYaw >= 135 && normalizedYaw < 225) {
+            return Block.Face.NORTH;
+        } else {
+            return Block.Face.EAST;
         }
     }
 
