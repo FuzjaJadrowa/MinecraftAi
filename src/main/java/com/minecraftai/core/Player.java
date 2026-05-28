@@ -38,6 +38,7 @@ public class Player {
     private boolean wasOnGround = true;
     private float regenTimer = 0.0f;
     private boolean isDead = false;
+    private boolean godMode = false;
 
     public Player(World world) {
         this.world = world;
@@ -443,6 +444,7 @@ public class Player {
 
     private float getBreakSpeed(Block target) {
         if (!target.isDestructible()) return 0.0f;
+        if (godMode) return 1000.0f;
         String name = target.getClass().getSimpleName();
         switch (name) {
             case "Leaves":
@@ -571,6 +573,14 @@ public class Player {
 
     public float getBreakProgress() {
         return breakProgress;
+    }
+
+    public boolean isGodMode() {
+        return godMode;
+    }
+
+    public void setGodMode(boolean godMode) {
+        this.godMode = godMode;
     }
 
     public Block getCurrentTargetBlock() {

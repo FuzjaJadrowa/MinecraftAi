@@ -780,6 +780,26 @@ public class Game {
                     }
                 }
                 break;
+            case "god":
+                if (parts.length >= 2) {
+                    String arg = parts[1].toLowerCase();
+                    if (arg.equals("on") || arg.equals("true") || arg.equals("1")) {
+                        player.setGodMode(true);
+                    } else if (arg.equals("off") || arg.equals("false") || arg.equals("0")) {
+                        player.setGodMode(false);
+                    } else {
+                        addChatMessage("Usage: /god [on|off]");
+                        break;
+                    }
+                } else {
+                    player.setGodMode(!player.isGodMode());
+                }
+                if (player.isGodMode()) {
+                    addChatMessage("God mode enabled!");
+                } else {
+                    addChatMessage("God mode disabled!");
+                }
+                break;
             default:
                 addChatMessage("Unknown command: " + commandName);
                 break;
