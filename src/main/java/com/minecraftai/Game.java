@@ -57,6 +57,7 @@ public class Game {
     private int[] destroyStageTextureIDs = new int[10];
 
     public static boolean COMMANDS_ENABLED = false;
+    public static boolean GAMMA_FULL_BRIGHT = false;
     public boolean isCommandConsoleOpen = false;
     private String commandInput = "";
 
@@ -394,6 +395,11 @@ public class Game {
         }
 
         renderSkyEnvironment();
+        if (GAMMA_FULL_BRIGHT) {
+            glDisable(GL_LIGHTING);
+        } else {
+            glEnable(GL_LIGHTING);
+        }
         world.render(player);
         player.renderPlayerModel(alpha, cameraMode);
 
@@ -501,7 +507,9 @@ public class Game {
         glLineWidth(1.0f);
 
         glDisable(GL_BLEND);
-        glEnable(GL_LIGHTING);
+        if (!GAMMA_FULL_BRIGHT) {
+            glEnable(GL_LIGHTING);
+        }
         glEnable(GL_TEXTURE_2D);
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
@@ -660,7 +668,9 @@ public class Game {
         FontRenderer.drawStringRegular(posText, 10, 25);
         FontRenderer.drawStringRegular(fpsText, 10, 50);
 
-        glEnable(GL_LIGHTING);
+        if (!GAMMA_FULL_BRIGHT) {
+            glEnable(GL_LIGHTING);
+        }
         glEnable(GL_DEPTH_TEST);
 
         glMatrixMode(GL_PROJECTION);
@@ -784,7 +794,9 @@ public class Game {
         glDisable(GL_TEXTURE_2D);
         glDepthMask(true);
         glEnable(GL_DEPTH_TEST);
-        glEnable(GL_LIGHTING);
+        if (!GAMMA_FULL_BRIGHT) {
+            glEnable(GL_LIGHTING);
+        }
     }
 
     private void charCallback(long window, int codepoint) {
@@ -866,6 +878,31 @@ public class Game {
                     addChatMessage("God mode enabled!");
                 } else {
                     addChatMessage("God mode disabled!");
+                }
+                break;
+            case "gamma":
+                if (parts.length >= 2) {
+                    String arg = parts[1].toLowerCase();
+                    if (arg.equals("on") || arg.equals("true") || arg.equals("1")) {
+                        GAMMA_FULL_BRIGHT = true;
+                    } else if (arg.equals("off") || arg.equals("false") || arg.equals("0")) {
+                        GAMMA_FULL_BRIGHT = false;
+                    } else {
+                        addChatMessage("Usage: /gamma [on|off]");
+                        break;
+                    }
+                } else {
+                    GAMMA_FULL_BRIGHT = !GAMMA_FULL_BRIGHT;
+                }
+                if (world != null) {
+                    for (Chunk c : world.getChunks().values()) {
+                        c.markDirty();
+                    }
+                }
+                if (GAMMA_FULL_BRIGHT) {
+                    addChatMessage("Gamma enabled (full bright)!");
+                } else {
+                    addChatMessage("Gamma disabled!");
                 }
                 break;
             default:

@@ -218,6 +218,9 @@ public class Chunk {
     }
 
     private float getVertexLight(World world, int vx, int vy, int vz) {
+        if (com.minecraftai.Game.GAMMA_FULL_BRIGHT) {
+            return 1.0f;
+        }
         float l0 = world.getColumnLightFactor(vx - 1, vy, vz - 1);
         float l1 = world.getColumnLightFactor(vx, vy, vz - 1);
         float l2 = world.getColumnLightFactor(vx - 1, vy, vz);

@@ -1,6 +1,7 @@
 package com.minecraftai.core;
 
 import java.io.File;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,116 +25,33 @@ public class RecipeManager {
     }
 
     private static final List<Recipe> recipes = new ArrayList<>();
+    
+    private static final String[] RECIPE_FILES = {
+        "planks.json",
+        "crafting_table.json",
+        "stick.json",
+        "furnace.json"
+    };
 
     public static void loadRecipes() {
         recipes.clear();
-        File dataDir = new File("data");
-        if (!dataDir.exists()) {
-            dataDir.mkdirs();
-        }
-        
-        File[] files = dataDir.listFiles((dir, name) -> name.endsWith(".json"));
-        if (files == null || files.length == 0) {
-            writeDefaultRecipes(dataDir);
-            files = dataDir.listFiles((dir, name) -> name.endsWith(".json"));
-        }
-        
-        if (files != null) {
-            com.google.gson.Gson gson = new com.google.gson.Gson();
-            for (File f : files) {
-                try {
-                    String content = Files.readString(f.toPath());
+        com.google.gson.Gson gson = new com.google.gson.Gson();
+        for (String fileName : RECIPE_FILES) {
+            String path = "/data/" + fileName;
+            try (InputStream is = RecipeManager.class.getResourceAsStream(path)) {
+                if (is != null) {
+                    String content = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
                     Recipe recipe = gson.fromJson(content, Recipe.class);
                     if (recipe != null) {
                         recipes.add(recipe);
                     }
-                } catch (Exception e) {
-                    System.err.println("Failed to load recipe: " + f.getName());
-                    e.printStackTrace();
+                } else {
+                    System.err.println("Recipe file not found in classpath: " + path);
                 }
+            } catch (Exception e) {
+                System.err.println("Failed to load recipe from classpath: " + fileName);
+                e.printStackTrace();
             }
-        }
-    }
-
-    private static void writeDefaultRecipes(File dataDir) {
-        try {
-            // 1. Planks
-            Files.writeString(new File(dataDir, "planks.json").toPath(), 
-                "{\n" +
-                "  \"type\": \"minecraft:crafting_shaped\",\n" +
-                "  \"pattern\": [\n" +
-                "    \"#\"\n" +
-                "  ],\n" +
-                "  \"key\": {\n" +
-                "    \"#\": {\n" +
-                "      \"item\": \"minecraft:log\"\n" +
-                "    }\n" +
-                "  },\n" +
-                "  \"result\": {\n" +
-                "    \"item\": \"minecraft:planks\",\n" +
-                "    \"count\": 4\n" +
-                "  }\n" +
-                "}");
-
-            // 2. Crafting Table
-            Files.writeString(new File(dataDir, "crafting_table.json").toPath(), 
-                "{\n" +
-                "  \"type\": \"minecraft:crafting_shaped\",\n" +
-                "  \"pattern\": [\n" +
-                "    \"##\",\n" +
-                "    \"##\"\n" +
-                "  ],\n" +
-                "  \"key\": {\n" +
-                "    \"#\": {\n" +
-                "      \"item\": \"minecraft:planks\"\n" +
-                "    }\n" +
-                "  },\n" +
-                "  \"result\": {\n" +
-                "    \"item\": \"minecraft:crafting_table\",\n" +
-                "    \"count\": 1\n" +
-                "  }\n" +
-                "}");
-
-            // 3. Stick
-            Files.writeString(new File(dataDir, "stick.json").toPath(), 
-                "{\n" +
-                "  \"type\": \"minecraft:crafting_shaped\",\n" +
-                "  \"pattern\": [\n" +
-                "    \"#\",\n" +
-                "    \"#\"\n" +
-                "  ],\n" +
-                "  \"key\": {\n" +
-                "    \"#\": {\n" +
-                "      \"item\": \"minecraft:planks\"\n" +
-                "    }\n" +
-                "  },\n" +
-                "  \"result\": {\n" +
-                "    \"item\": \"minecraft:stick\",\n" +
-                "    \"count\": 4\n" +
-                "  }\n" +
-                "}");
-
-            // 4. Furnace
-            Files.writeString(new File(dataDir, "furnace.json").toPath(), 
-                "{\n" +
-                "  \"type\": \"minecraft:crafting_shaped\",\n" +
-                "  \"pattern\": [\n" +
-                "    \"###\",\n" +
-                "    \"# #\",\n" +
-                "    \"###\"\n" +
-                "  ],\n" +
-                "  \"key\": {\n" +
-                "    \"#\": {\n" +
-                "      \"item\": \"minecraft:cobblestone\"\n" +
-                "    }\n" +
-                "  },\n" +
-                "  \"result\": {\n" +
-                "    \"item\": \"minecraft:furnace\",\n" +
-                "    \"count\": 1\n" +
-                "  }\n" +
-                "}");
-        } catch (Exception e) {
-            e.printStackTrace();
         }
     }
 

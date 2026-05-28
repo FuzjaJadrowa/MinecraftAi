@@ -272,8 +272,8 @@ public class CraftingTableMenu {
 
         // Draw title
         glColor4f(0.3f, 0.3f, 0.3f, 1.0f);
-        FontRenderer.drawStringRegular("Crafting", invX + 28.0f * guiScale, invY + 6.0f * guiScale);
-        FontRenderer.drawStringRegular("Inventory", invX + 8.0f * guiScale, invY + 72.0f * guiScale);
+        FontRenderer.drawStringRegular("Crafting", invX + 28.0f * guiScale, invY + 10.0f * guiScale);
+        FontRenderer.drawStringRegular("Inventory", invX + 8.0f * guiScale, invY + 76.0f * guiScale);
 
         // Draw inventory slots
         ItemStack[] inventory = player.getInventory();

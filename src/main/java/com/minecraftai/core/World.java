@@ -17,6 +17,7 @@ public class World {
     private List<DroppedItem> droppedItems = new CopyOnWriteArrayList<>();
     private PerlinNoise noiseGen;
     private double waterTickTimer = 0.0;
+    private int chunksGeneratedThisFrame = 0;
     private final java.util.Set<BlockPos> activeWaterPos = java.util.concurrent.ConcurrentHashMap.newKeySet();
     public static final int BASE_Y = 64;
     public static final int WATER_LEVEL = 64;
@@ -61,40 +62,61 @@ public class World {
         });
 
         if (!chunk.isGenerated()) {
-            if (worldName != null) {
-                byte[] data = WorldSaveManager.loadChunkData(worldName, chunkX, chunkZ);
-                if (data != null) {
-                    int startX = chunkX * Chunk.CHUNK_SIZE_X;
-                    int startZ = chunkZ * Chunk.CHUNK_SIZE_Z;
-                    int idx = 0;
-                    for (int x = 0; x < Chunk.CHUNK_SIZE_X; x++) {
-                        for (int y = 0; y < Chunk.CHUNK_SIZE_Y; y++) {
-                            for (int z = 0; z < Chunk.CHUNK_SIZE_Z; z++) {
-                                int id = data[idx++] & 0xFF;
-                                Block b = WorldSaveManager.createBlockById(id, startX + x, y, startZ + z);
-                                chunk.setBlock(x, y, z, b, false);
-                                if (b instanceof Water || b instanceof FlowingWater) {
-                                    queueWaterUpdate(startX + x, y, startZ + z);
-                                }
-                                if (b instanceof Furnace) {
-                                    queueFurnaceUpdate(startX + x, y, startZ + z);
+            if (chunksGeneratedThisFrame < 8) {
+                boolean loaded = false;
+                if (worldName != null) {
+                    byte[] data = WorldSaveManager.loadChunkData(worldName, chunkX, chunkZ);
+                    if (data != null) {
+                        chunksGeneratedThisFrame++;
+                        int startX = chunkX * Chunk.CHUNK_SIZE_X;
+                        int startZ = chunkZ * Chunk.CHUNK_SIZE_Z;
+                        int idx = 0;
+                        for (int x = 0; x < Chunk.CHUNK_SIZE_X; x++) {
+                            for (int y = 0; y < Chunk.CHUNK_SIZE_Y; y++) {
+                                for (int z = 0; z < Chunk.CHUNK_SIZE_Z; z++) {
+                                    int id = data[idx++] & 0xFF;
+                                    Block b = WorldSaveManager.createBlockById(id, startX + x, y, startZ + z);
+                                    chunk.setBlock(x, y, z, b, false);
+                                    if (b instanceof Water || b instanceof FlowingWater) {
+                                        queueWaterUpdate(startX + x, y, startZ + z);
+                                    }
+                                    if (b instanceof Furnace) {
+                                        queueFurnaceUpdate(startX + x, y, startZ + z);
+                                    }
                                 }
                             }
                         }
+                        chunk.setGenerated(true);
+                        chunk.setModified(true);
+                        chunk.markDirty();
+                        markNeighborsDirty(chunkX, chunkZ);
+                        loaded = true;
                     }
-                    chunk.setGenerated(true);
-                    chunk.setModified(true);
-                    chunk.markDirty();
-                    return chunk;
+                }
+                if (!loaded) {
+                    chunksGeneratedThisFrame++;
+                    chunk.generate(this);
+                    markNeighborsDirty(chunkX, chunkZ);
                 }
             }
-            chunk.generate(this);
         }
 
         return chunk;
     }
 
+    public void markNeighborsDirty(int chunkX, int chunkZ) {
+        int[] dx = {-1, 1, 0, 0};
+        int[] dz = {0, 0, -1, 1};
+        for (int i = 0; i < 4; i++) {
+            Chunk neighbor = chunks.get((chunkX + dx[i]) + "_" + (chunkZ + dz[i]));
+            if (neighbor != null) {
+                neighbor.markDirty();
+            }
+        }
+    }
+
     public void render(Player player) {
+        chunksGeneratedThisFrame = 0;
         int playerChunkX = (int) Math.floor(player.getX() / Chunk.CHUNK_SIZE_X);
         int playerChunkZ = (int) Math.floor(player.getZ() / Chunk.CHUNK_SIZE_Z);
 
@@ -268,19 +290,25 @@ public class World {
             return false;
         }
 
+        // Global low-frequency noise mask to reduce cave frequency
+        double caveMask = noiseGen.noise(x * 0.01, y * 0.015, z * 0.01);
+        if (caveMask < 0.15) {
+            return false;
+        }
+
         double scale = 0.025;
         double n1 = noiseGen.noise(x * scale, y * (scale * 1.2), z * scale);
         double n2 = noiseGen.noise(x * scale + 2000.0, y * (scale * 1.2) + 5000.0, z * scale - 3000.0);
 
         double val = n1 * n1 + n2 * n2;
-        double threshold = 0.055;
+        double threshold = 0.008; // Much thinner caves (was 0.024)
 
         if (y >= surfaceHeight - 4) {
-            double maskNoise = noiseGen.noise(x * 0.01, z * 0.01);
-            if (maskNoise < 0.2) {
+            double maskNoise = noiseGen.noise(x * 0.005, z * 0.005); // Lower frequency mask
+            if (maskNoise < 0.6) { // Rarer surface entrances (was 0.5)
                 return false;
             }
-            threshold = 0.04;
+            threshold = 0.004; // Thinner surface entrance (was 0.014)
         }
 
         return val < threshold;
