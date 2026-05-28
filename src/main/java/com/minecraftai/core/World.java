@@ -1,5 +1,7 @@
 package com.minecraftai.core;
 
+import com.minecraftai.blocks.Water;
+import com.minecraftai.blocks.FlowingWater;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +15,8 @@ public class World {
     private Map<String, Chunk> chunks = new ConcurrentHashMap<>();
     private List<DroppedItem> droppedItems = new CopyOnWriteArrayList<>();
     private PerlinNoise noiseGen;
+    private double waterTickTimer = 0.0;
+    private final java.util.Set<BlockPos> activeWaterPos = java.util.concurrent.ConcurrentHashMap.newKeySet();
     public static final int BASE_Y = 64;
     public static final int WATER_LEVEL = 64;
     public static final double TERRAIN_SCALE = 0.015;
@@ -68,6 +72,9 @@ public class World {
                                 int id = data[idx++] & 0xFF;
                                 Block b = WorldSaveManager.createBlockById(id, startX + x, y, startZ + z);
                                 chunk.setBlock(x, y, z, b, false);
+                                if (b instanceof Water || b instanceof FlowingWater) {
+                                    queueWaterUpdate(startX + x, y, startZ + z);
+                                }
                             }
                         }
                     }
@@ -185,6 +192,15 @@ public class World {
 
         chunk.setBlock(localX, globalY, localZ, block, true);
 
+        // Queue water updates for this block and its 6 neighbors
+        queueWaterUpdate(globalX, globalY, globalZ);
+        queueWaterUpdate(globalX - 1, globalY, globalZ);
+        queueWaterUpdate(globalX + 1, globalY, globalZ);
+        queueWaterUpdate(globalX, globalY - 1, globalZ);
+        queueWaterUpdate(globalX, globalY + 1, globalZ);
+        queueWaterUpdate(globalX, globalY, globalZ - 1);
+        queueWaterUpdate(globalX, globalY, globalZ + 1);
+
         Chunk neighbor;
         if (localX == 0) {
             neighbor = chunks.get((chunkX - 1) + "_" + chunkZ);
@@ -262,5 +278,139 @@ public class World {
             }
         }
         return Math.max(0.2f, 1.0f - totalBlockage);
+    }
+
+    public void updateWater(double dt) {
+        waterTickTimer += dt;
+        if (waterTickTimer >= 0.15) {
+            waterTickTimer = 0.0;
+            tickWater();
+        }
+    }
+
+    private void tickWater() {
+        if (activeWaterPos.isEmpty()) return;
+
+        List<BlockPos> toProcess = new ArrayList<>(activeWaterPos);
+        activeWaterPos.clear();
+
+        for (BlockPos pos : toProcess) {
+            Block current = getBlockAt(pos.x, pos.y, pos.z);
+            if (current instanceof Water) {
+                // Standing/source water block (level 8)
+                Block above = getBlockAt(pos.x, pos.y + 1, pos.z);
+                boolean isSource = (pos.y >= WATER_LEVEL) || !(above instanceof Water || above instanceof FlowingWater);
+                if (isSource) {
+                    spreadWater(pos.x, pos.y, pos.z, 8);
+                } else {
+                    int targetLevel = calculateTargetWaterLevel(pos.x, pos.y, pos.z);
+                    if (targetLevel == 0) {
+                        removeBlock(pos.x, pos.y, pos.z);
+                    } else if (targetLevel < 8) {
+                        // Change standing water to flowing water of target level
+                        FlowingWater flowing = new FlowingWater(pos.x, pos.y, pos.z, targetLevel);
+                        setBlockAt(pos.x, pos.y, pos.z, flowing);
+                        spreadWater(pos.x, pos.y, pos.z, targetLevel);
+                    } else {
+                        // Remains standing water
+                        spreadWater(pos.x, pos.y, pos.z, 8);
+                    }
+                }
+            } else if (current instanceof FlowingWater) {
+                FlowingWater flowing = (FlowingWater) current;
+                int targetLevel = calculateTargetWaterLevel(pos.x, pos.y, pos.z);
+                if (targetLevel == 0) {
+                    removeBlock(pos.x, pos.y, pos.z);
+                } else if (targetLevel == 8) {
+                    // Turn into standing water
+                    Water water = new Water(pos.x, pos.y, pos.z);
+                    setBlockAt(pos.x, pos.y, pos.z, water);
+                    spreadWater(pos.x, pos.y, pos.z, 8);
+                } else if (targetLevel != flowing.getLevel()) {
+                    flowing.setLevel(targetLevel);
+                    setBlockAt(pos.x, pos.y, pos.z, flowing);
+                    spreadWater(pos.x, pos.y, pos.z, targetLevel);
+                } else {
+                    spreadWater(pos.x, pos.y, pos.z, targetLevel);
+                }
+            } else if (current == null) {
+                int targetLevel = calculateTargetWaterLevel(pos.x, pos.y, pos.z);
+                if (targetLevel > 0) {
+                    Block newWater;
+                    if (targetLevel == 8) {
+                        newWater = new Water(pos.x, pos.y, pos.z);
+                    } else {
+                        newWater = new FlowingWater(pos.x, pos.y, pos.z, targetLevel);
+                    }
+                    setBlockAt(pos.x, pos.y, pos.z, newWater);
+                    spreadWater(pos.x, pos.y, pos.z, targetLevel);
+                }
+            }
+        }
+    }
+
+    private int getWaterLevel(Block b) {
+        if (b instanceof Water) return 8;
+        if (b instanceof FlowingWater) return ((FlowingWater) b).getLevel();
+        return 0;
+    }
+
+    private int calculateTargetWaterLevel(int x, int y, int z) {
+        Block above = getBlockAt(x, y + 1, z);
+        if (above instanceof Water || above instanceof FlowingWater) {
+            return 8;
+        }
+
+        int maxNeighborLevel = 0;
+        int[] dx = {-1, 1, 0, 0};
+        int[] dz = {0, 0, -1, 1};
+        for (int i = 0; i < 4; i++) {
+            Block n = getBlockAt(x + dx[i], y, z + dz[i]);
+            if (n instanceof Water) {
+                maxNeighborLevel = Math.max(maxNeighborLevel, 8);
+            } else if (n instanceof FlowingWater) {
+                maxNeighborLevel = Math.max(maxNeighborLevel, ((FlowingWater) n).getLevel());
+            }
+        }
+
+        return Math.max(0, maxNeighborLevel - 1);
+    }
+
+    private void spreadWater(int x, int y, int z, int level) {
+        if (y > 0) {
+            Block below = getBlockAt(x, y - 1, z);
+            if (below == null || ((below instanceof Water || below instanceof FlowingWater) && getWaterLevel(below) < 8)) {
+                queueWaterUpdate(x, y - 1, z);
+            }
+        }
+
+        boolean canSpreadHorizontally = false;
+        if (y > 0) {
+            Block below = getBlockAt(x, y - 1, z);
+            if (below != null && below.isSolid()) {
+                canSpreadHorizontally = true;
+            }
+        } else {
+            canSpreadHorizontally = true;
+        }
+
+        if (canSpreadHorizontally && level > 1) {
+            int[] dx = {-1, 1, 0, 0};
+            int[] dz = {0, 0, -1, 1};
+            for (int i = 0; i < 4; i++) {
+                int nx = x + dx[i];
+                int nz = z + dz[i];
+                Block neighbor = getBlockAt(nx, y, nz);
+                if (neighbor == null || ((neighbor instanceof Water || neighbor instanceof FlowingWater) && getWaterLevel(neighbor) < level - 1)) {
+                    queueWaterUpdate(nx, y, nz);
+                }
+            }
+        }
+    }
+
+    public void queueWaterUpdate(int x, int y, int z) {
+        if (y >= 0 && y < Chunk.CHUNK_SIZE_Y) {
+            activeWaterPos.add(new BlockPos(x, y, z));
+        }
     }
 }

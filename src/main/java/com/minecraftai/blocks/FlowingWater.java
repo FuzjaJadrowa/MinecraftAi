@@ -3,16 +3,29 @@ package com.minecraftai.blocks;
 import com.minecraftai.core.Block;
 import com.minecraftai.core.ItemType;
 
-public class Water extends Block {
-    public Water(int x, int y, int z) {
+public class FlowingWater extends Block {
+    private int level = 7;
+
+    public FlowingWater(int x, int y, int z) {
+        this(x, y, z, 7);
+    }
+
+    public FlowingWater(int x, int y, int z, int level) {
         super(x, y, z);
         this.isTransparent = true;
-        this.blockHeight = 0.875f;
         this.isDestructible = false;
+        setLevel(level);
     }
 
     public int getLevel() {
-        return 8;
+        return level;
+    }
+
+    public void setLevel(int level) {
+        if (level < 1) level = 1;
+        if (level > 8) level = 8;
+        this.level = level;
+        this.blockHeight = level / 8.0f;
     }
 
     @Override

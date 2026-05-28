@@ -265,6 +265,7 @@ public class Game {
                     player.handleInput(window, isCommandConsoleOpen);
                     player.update(window, PHYSICS_STEP, isCommandConsoleOpen);
                     world.updateDroppedItems((float) PHYSICS_STEP, player);
+                    world.updateWater(PHYSICS_STEP);
                     accumulator -= PHYSICS_STEP;
                 }
                 if (player.isDead()) {
@@ -344,8 +345,11 @@ public class Game {
 
         renderDebugInfo();
 
+        renderChatMessages();
+
         renderCommandConsole();
     }
+
 
     private void renderBreakingBlockOverlay() {
         Block target = player.getTargetBlock(world, 4.5f);
@@ -427,7 +431,7 @@ public class Game {
         glVertex3f(minX, maxY, minZ); glVertex3f(maxX, maxY, minZ);
         glVertex3f(maxX, maxY, minZ); glVertex3f(maxX, maxY, maxZ);
         glVertex3f(maxX, maxY, maxZ); glVertex3f(minX, maxY, maxZ);
-        glVertex3f(minX, maxY, maxZ); glVertex3f(minX, minY, minZ);
+        glVertex3f(minX, maxY, maxZ); glVertex3f(minX, maxY, minZ);
 
         glVertex3f(minX, minY, minZ); glVertex3f(minX, maxY, minZ);
         glVertex3f(maxX, minY, minZ); glVertex3f(maxX, maxY, minZ);
@@ -755,7 +759,7 @@ public class Game {
                         player.setVelocityY(0);
                         player.resetPrevPosition();
                     } catch (NumberFormatException e) {
-                        System.err.println("Invalid coordinate format in /tp command!");
+                        addChatMessage("Invalid coordinate format in /tp command!");
                     }
                 }
                 break;
@@ -771,13 +775,13 @@ public class Game {
                             if (val > 5.0f) val = 5.0f;
                             player.setSpeed(val);
                         } catch (NumberFormatException e) {
-                            System.err.println("Invalid speed value!");
+                            addChatMessage("Invalid speed value!");
                         }
                     }
                 }
                 break;
             default:
-                System.err.println("Unknown command: " + commandName);
+                addChatMessage("Unknown command: " + commandName);
                 break;
         }
     }
@@ -800,6 +804,7 @@ public class Game {
         glLoadIdentity();
 
         glDisable(GL_LIGHTING);
+        glDisable(GL_DEPTH_TEST);
         glDisable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -822,12 +827,13 @@ public class Game {
         String displayText = commandInput + cursor;
 
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        FontRenderer.drawString(displayText, padding + 6, barY + 6);
+        FontRenderer.drawString(displayText, padding + 6, barY + 17);
 
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
         glMatrixMode(GL_MODELVIEW);
         glPopMatrix();
+        glEnable(GL_DEPTH_TEST);
     }
 
     private void scrollCallback(long window, double xoffset, double yoffset) {
@@ -848,5 +854,92 @@ public class Game {
 
     public long getWindowHandle() {
         return window;
+    }
+
+    private static class ChatMessage {
+        String text;
+        long timestamp;
+
+        ChatMessage(String text) {
+            this.text = text;
+            this.timestamp = System.currentTimeMillis();
+        }
+    }
+
+    private final java.util.List<ChatMessage> chatMessages = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    public void addChatMessage(String message) {
+        chatMessages.add(new ChatMessage(message));
+        if (chatMessages.size() > 50) {
+            chatMessages.remove(0);
+        }
+    }
+
+    private void renderChatMessages() {
+        if (chatMessages.isEmpty()) return;
+
+        int[] width = new int[1];
+        int[] height = new int[1];
+        glfwGetFramebufferSize(window, width, height);
+        float currentW = width[0];
+        float currentH = height[0];
+
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0, currentW, currentH, 0, -1, 1);
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+
+        glDisable(GL_LIGHTING);
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        long now = System.currentTimeMillis();
+        int maxVisible = 10;
+        int startIndex = Math.max(0, chatMessages.size() - maxVisible);
+        java.util.List<ChatMessage> visible = chatMessages.subList(startIndex, chatMessages.size());
+
+        float startY = currentH - (isCommandConsoleOpen ? 60 : 35);
+        float lineHeight = 20;
+
+        for (int i = 0; i < visible.size(); i++) {
+            ChatMessage msg = visible.get(i);
+            long age = now - msg.timestamp;
+
+            float alpha = 1.0f;
+            if (!isCommandConsoleOpen) {
+                if (age > 10000) continue;
+                if (age > 8000) {
+                    alpha = 1.0f - (age - 8000) / 2000.0f;
+                }
+            }
+
+            float y = startY - (visible.size() - 1 - i) * lineHeight;
+
+            float textWidth = FontRenderer.getStringWidth(msg.text);
+            glColor4f(0.0f, 0.0f, 0.0f, 0.4f * alpha);
+            glBegin(GL_QUADS);
+            glVertex2f(8, y - 14);
+            glVertex2f(8 + textWidth + 6, y - 14);
+            glVertex2f(8 + textWidth + 6, y + 4);
+            glVertex2f(8, y + 4);
+            glEnd();
+
+            if (msg.text.startsWith("Unknown command") || msg.text.startsWith("Invalid")) {
+                glColor4f(1.0f, 0.3f, 0.3f, alpha);
+            } else {
+                glColor4f(1.0f, 1.0f, 1.0f, alpha);
+            }
+            FontRenderer.drawString(msg.text, 11, y);
+        }
+
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
+        glEnable(GL_DEPTH_TEST);
     }
 }

@@ -4,6 +4,7 @@ import com.minecraftai.blocks.Cobblestone;
 import com.minecraftai.blocks.Dirt;
 import com.minecraftai.blocks.Log;
 import com.minecraftai.blocks.Water;
+import com.minecraftai.blocks.FlowingWater;
 import com.minecraftai.renderer.TextureLoader;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -348,6 +349,35 @@ public class Player {
             dz = (float) (nx * sin - nz * cos) * speed * speedMultiplier;
         }
 
+        // Apply water current push force
+        Block playerBlock = world.getBlockAt((int) Math.floor(x), (int) Math.floor(y + 0.1f), (int) Math.floor(z));
+        if (playerBlock instanceof Water || playerBlock instanceof FlowingWater) {
+            int level = (playerBlock instanceof Water) ? 8 : ((FlowingWater) playerBlock).getLevel();
+            if (level < 8) {
+                int wx = playerBlock.getX();
+                int wy = playerBlock.getY();
+                int wz = playerBlock.getZ();
+
+                int levelL = getWaterLevelAt(wx - 1, wy, wz);
+                int levelR = getWaterLevelAt(wx + 1, wy, wz);
+                int levelB = getWaterLevelAt(wx, wy, wz - 1);
+                int levelF = getWaterLevelAt(wx, wy, wz + 1);
+
+                float pushX = levelL - levelR;
+                float pushZ = levelB - levelF;
+
+                float length = (float) Math.sqrt(pushX * pushX + pushZ * pushZ);
+                if (length > 0) {
+                    pushX /= length;
+                    pushZ /= length;
+                    float pushSpeed = 0.012f; // Slight water current push speed
+                    dx += pushX * pushSpeed;
+                    dz += pushZ * pushSpeed;
+                }
+            }
+        }
+
+
         if (!collides(x + dx, y, z)) {
             x += dx;
         }
@@ -605,7 +635,7 @@ public class Player {
             if (currentBlockX != prevX || currentBlockY != prevY || currentBlockZ != prevZ) {
                 Block b = world.getBlockAt(currentBlockX, currentBlockY, currentBlockZ);
 
-                if (b != null && !(b instanceof Water)) {
+                if (b != null && !(b instanceof Water || b instanceof FlowingWater)) {
                     Block newBlock = null;
                     switch (heldStack.getType()) {
                         case DIRT:
@@ -656,7 +686,7 @@ public class Player {
             float checkY = eyeY + dirY * t;
             float checkZ = eyeZ + dirZ * t;
             Block b = world.getBlockAt((int)Math.floor(checkX), (int)Math.floor(checkY), (int)Math.floor(checkZ));
-            if (b != null && !(b instanceof Water)) {
+            if (b != null && !(b instanceof Water || b instanceof FlowingWater)) {
                 return b;
             }
         }
@@ -836,5 +866,16 @@ public class Player {
 
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
+    }
+
+    private int getWaterLevelAt(int x, int y, int z) {
+        Block b = world.getBlockAt(x, y, z);
+        if (b instanceof Water) {
+            return 8;
+        }
+        if (b instanceof FlowingWater) {
+            return ((FlowingWater) b).getLevel();
+        }
+        return 0;
     }
 }

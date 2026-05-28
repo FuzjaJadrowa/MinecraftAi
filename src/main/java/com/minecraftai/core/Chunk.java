@@ -235,7 +235,7 @@ public class Chunk {
         float alpha = current.isTransparent() ? 0.7f : 1.0f;
 
         Block neighbor = (y + 1 >= CHUNK_SIZE_Y) ? null : blocks[x][y + 1][z];
-        if (shouldRenderFace(current, neighbor)) {
+        if (shouldRenderFace(current, neighbor, false)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.TOP));
             glNormal3f(0, 1, 0);
             float l0 = getVertexLight(world, globalX, y + 1, globalZ);
@@ -250,7 +250,7 @@ public class Chunk {
         }
 
         neighbor = (y - 1 < 0) ? null : blocks[x][y - 1][z];
-        if (shouldRenderFace(current, neighbor)) {
+        if (shouldRenderFace(current, neighbor, false)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.BOTTOM));
             glNormal3f(0, -1, 0);
             float l0 = getVertexLight(world, globalX, y, globalZ);
@@ -265,7 +265,7 @@ public class Chunk {
         }
 
         neighbor = (x + 1 >= CHUNK_SIZE_X) ? world.getBlockAt(globalX + 1, y, globalZ) : blocks[x + 1][y][z];
-        if (shouldRenderFace(current, neighbor)) {
+        if (shouldRenderFace(current, neighbor, true)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.EAST));
             glNormal3f(1, 0, 0);
             float l0 = getVertexLight(world, globalX + 1, y, globalZ);
@@ -280,7 +280,7 @@ public class Chunk {
         }
 
         neighbor = (x - 1 < 0) ? world.getBlockAt(globalX - 1, y, globalZ) : blocks[x - 1][y][z];
-        if (shouldRenderFace(current, neighbor)) {
+        if (shouldRenderFace(current, neighbor, true)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.WEST));
             glNormal3f(-1, 0, 0);
             float l0 = getVertexLight(world, globalX - 1, y, globalZ);
@@ -295,7 +295,7 @@ public class Chunk {
         }
 
         neighbor = (z + 1 >= CHUNK_SIZE_Z) ? world.getBlockAt(globalX, y, globalZ + 1) : blocks[x][y][z + 1];
-        if (shouldRenderFace(current, neighbor)) {
+        if (shouldRenderFace(current, neighbor, true)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.NORTH));
             glNormal3f(0, 0, 1);
             float l0 = getVertexLight(world, globalX, y, globalZ + 1);
@@ -310,7 +310,7 @@ public class Chunk {
         }
 
         neighbor = (z - 1 < 0) ? world.getBlockAt(globalX, y, globalZ - 1) : blocks[x][y][z - 1];
-        if (shouldRenderFace(current, neighbor)) {
+        if (shouldRenderFace(current, neighbor, true)) {
             float[] uv = TextureAtlas.getUV(current.getTextureIndex(Block.Face.SOUTH));
             glNormal3f(0, 0, -1);
             float l0 = getVertexLight(world, globalX, y, globalZ - 1);
@@ -326,7 +326,7 @@ public class Chunk {
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f); // Reset color
     }
 
-    private boolean shouldRenderFace(Block current, Block neighbor) {
+    private boolean shouldRenderFace(Block current, Block neighbor, boolean isSideFace) {
         if (neighbor == null) {
             return true;
         }
@@ -334,10 +334,19 @@ public class Chunk {
             return true;
         }
         if (current.isTransparent() && neighbor.isTransparent()) {
-            return false;
+            boolean isCurrentWater = current instanceof Water || current instanceof FlowingWater;
+            boolean isNeighborWater = neighbor instanceof Water || neighbor instanceof FlowingWater;
+            if (isCurrentWater && isNeighborWater) {
+                if (isSideFace) {
+                    return current.getBlockHeight() > neighbor.getBlockHeight();
+                }
+                return false;
+            }
+            return current.getClass() != neighbor.getClass();
         }
         return !neighbor.isSolid();
     }
+
 
     public Block getBlock(int x, int y, int z) {
         if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z) {

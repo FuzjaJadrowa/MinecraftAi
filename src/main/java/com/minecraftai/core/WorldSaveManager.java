@@ -219,6 +219,7 @@ public class WorldSaveManager {
             case "Leaves": return 6;
             case "Log": return 7;
             case "Bedrock": return 8;
+            case "FlowingWater": return 9;
             default: return 0;
         }
     }
@@ -233,6 +234,7 @@ public class WorldSaveManager {
             case 6: return new Leaves(x, y, z);
             case 7: return new Log(x, y, z);
             case 8: return new Bedrock(x, y, z);
+            case 9: return new FlowingWater(x, y, z, 7);
             default: return null;
         }
     }
