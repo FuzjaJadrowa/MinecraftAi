@@ -3,6 +3,7 @@ package com.minecraftai.core;
 import com.minecraftai.blocks.Cobblestone;
 import com.minecraftai.blocks.Dirt;
 import com.minecraftai.blocks.Log;
+import com.minecraftai.blocks.Water;
 import com.minecraftai.renderer.TextureLoader;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -162,42 +163,36 @@ public class Player {
 
         glBegin(GL_QUADS);
 
-        // TOP (Y = y2, normal = [0, 1, 0])
         glNormal3f(0.0f, 1.0f, 0.0f);
         glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y2, z1);
         glTexCoord2f((u + d) / tw, v / th);                 glVertex3f(x1, y2, z2);
         glTexCoord2f((u + d + w) / tw, v / th);             glVertex3f(x2, y2, z2);
         glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y2, z1);
 
-        // BOTTOM (Y = y1, normal = [0, -1, 0])
         glNormal3f(0.0f, -1.0f, 0.0f);
         glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x1, y1, z1);
         glTexCoord2f((u + d + 2 * w) / tw, (v + d) / th);     glVertex3f(x2, y1, z1);
         glTexCoord2f((u + d + 2 * w) / tw, v / th);         glVertex3f(x2, y1, z2);
         glTexCoord2f((u + d + w) / tw, v / th);             glVertex3f(x1, y1, z2);
 
-        // FRONT (Z = z1, normal = [0, 0, -1])
         glNormal3f(0.0f, 0.0f, -1.0f);
         glTexCoord2f((u + d) / tw, (v + d + h) / th);         glVertex3f(x1, y1, z1);
         glTexCoord2f((u + d + w) / tw, (v + d + h) / th);     glVertex3f(x2, y1, z1);
         glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y2, z1);
         glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y2, z1);
 
-        // BACK (Z = z2, normal = [0, 0, 1])
         glNormal3f(0.0f, 0.0f, 1.0f);
         glTexCoord2f((u + 2 * d + 2 * w) / tw, (v + d + h) / th); glVertex3f(x1, y1, z2);
         glTexCoord2f((u + 2 * d + w) / tw, (v + d + h) / th);     glVertex3f(x2, y1, z2);
         glTexCoord2f((u + 2 * d + w) / tw, (v + d) / th);         glVertex3f(x2, y2, z2);
         glTexCoord2f((u + 2 * d + 2 * w) / tw, (v + d) / th);     glVertex3f(x1, y2, z2);
 
-        // RIGHT (X = x2, normal = [1, 0, 0])
         glNormal3f(1.0f, 0.0f, 0.0f);
         glTexCoord2f((u + d + w) / tw, (v + d + h) / th);     glVertex3f(x2, y1, z2);
         glTexCoord2f((u + 2 * d + w) / tw, (v + d + h) / th); glVertex3f(x2, y1, z1);
         glTexCoord2f((u + 2 * d + w) / tw, (v + d) / th);     glVertex3f(x2, y2, z1);
         glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y2, z2);
 
-        // LEFT (X = x1, normal = [-1, 0, 0])
         glNormal3f(-1.0f, 0.0f, 0.0f);
         glTexCoord2f((u + d) / tw, (v + d + h) / th);         glVertex3f(x1, y1, z1);
         glTexCoord2f(u / tw, (v + d + h) / th);             glVertex3f(x1, y1, z2);
@@ -610,7 +605,7 @@ public class Player {
             if (currentBlockX != prevX || currentBlockY != prevY || currentBlockZ != prevZ) {
                 Block b = world.getBlockAt(currentBlockX, currentBlockY, currentBlockZ);
 
-                if (b != null) {
+                if (b != null && !(b instanceof Water)) {
                     Block newBlock = null;
                     switch (heldStack.getType()) {
                         case DIRT:
@@ -661,7 +656,7 @@ public class Player {
             float checkY = eyeY + dirY * t;
             float checkZ = eyeZ + dirZ * t;
             Block b = world.getBlockAt((int)Math.floor(checkX), (int)Math.floor(checkY), (int)Math.floor(checkZ));
-            if (b != null) {
+            if (b != null && !(b instanceof Water)) {
                 return b;
             }
         }

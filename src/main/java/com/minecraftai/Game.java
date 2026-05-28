@@ -49,6 +49,7 @@ public class Game {
     private float timeOfDay = 6000.0f;
     private int sunTextureID;
     private int moonTextureID;
+    private int[] destroyStageTextureIDs = new int[10];
 
     public static boolean COMMANDS_ENABLED = false;
     public boolean isCommandConsoleOpen = false;
@@ -95,6 +96,9 @@ public class Game {
         TextureAtlas.init();
         sunTextureID = TextureLoader.loadTexture("/assets/textures/misc/sun.png");
         moonTextureID = TextureLoader.loadTexture("/assets/textures/misc/moon.png");
+        for (int i = 0; i < 10; i++) {
+            destroyStageTextureIDs[i] = TextureLoader.loadTexture("/assets/textures/block/destroy/destroy_stage_" + i + ".png");
+        }
 
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_LIGHTING);
@@ -344,7 +348,7 @@ public class Game {
     }
 
     private void renderBreakingBlockOverlay() {
-        Block target = player.getCurrentTargetBlock();
+        Block target = player.getTargetBlock(world, 4.5f);
         float progress = player.getBreakProgress();
         if (target == null) return;
 
@@ -353,61 +357,82 @@ public class Game {
         int bz = target.getZ();
         float h = target.getBlockHeight();
 
+        if (progress > 0.0f) {
+            int stage = (int) (progress * 10.0f);
+            if (stage > 9) stage = 9;
+            if (stage < 0) stage = 0;
+
+            glEnable(GL_TEXTURE_2D);
+            glBindTexture(GL_TEXTURE_2D, destroyStageTextureIDs[stage]);
+
+            glDisable(GL_LIGHTING);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+            glBegin(GL_QUADS);
+            glTexCoord2f(0.0f, 0.0f); glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
+            glTexCoord2f(1.0f, 0.0f); glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
+            glTexCoord2f(1.0f, 1.0f); glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
+            glTexCoord2f(0.0f, 1.0f); glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
+
+            glTexCoord2f(0.0f, 0.0f); glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
+            glTexCoord2f(1.0f, 0.0f); glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
+            glTexCoord2f(1.0f, 1.0f); glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
+            glTexCoord2f(0.0f, 1.0f); glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
+
+            glTexCoord2f(0.0f, 0.0f); glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
+            glTexCoord2f(1.0f, 0.0f); glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
+            glTexCoord2f(1.0f, 1.0f); glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
+            glTexCoord2f(0.0f, 1.0f); glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
+
+            glTexCoord2f(0.0f, 0.0f); glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
+            glTexCoord2f(1.0f, 0.0f); glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
+            glTexCoord2f(1.0f, 1.0f); glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
+            glTexCoord2f(0.0f, 1.0f); glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
+
+            glTexCoord2f(0.0f, 0.0f); glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
+            glTexCoord2f(1.0f, 0.0f); glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
+            glTexCoord2f(1.0f, 1.0f); glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
+            glTexCoord2f(0.0f, 1.0f); glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
+
+            glTexCoord2f(0.0f, 0.0f); glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
+            glTexCoord2f(1.0f, 0.0f); glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
+            glTexCoord2f(1.0f, 1.0f); glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
+            glTexCoord2f(0.0f, 1.0f); glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
+            glEnd();
+
+            glDisable(GL_TEXTURE_2D);
+        }
+
         glDisable(GL_LIGHTING);
         glDisable(GL_TEXTURE_2D);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        if (progress > 0.0f) {
-            glColor4f(0.0f, 0.0f, 0.0f, progress * 0.7f);
-            glBegin(GL_QUADS);
-            glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
-            glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
-            glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
-            glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
-
-            glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
-            glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
-            glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
-            glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
-
-            glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
-            glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
-            glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
-            glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
-
-            glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
-            glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
-            glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
-            glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
-
-            glVertex3f(bx - 0.002f, by - 0.002f, bz + 1.002f);
-            glVertex3f(bx + 1.002f, by - 0.002f, bz + 1.002f);
-            glVertex3f(bx + 1.002f, by + h + 0.002f, bz + 1.002f);
-            glVertex3f(bx - 0.002f, by + h + 0.002f, bz + 1.002f);
-
-            glVertex3f(bx - 0.002f, by - 0.002f, bz - 0.002f);
-            glVertex3f(bx + 1.002f, by - 0.002f, bz - 0.002f);
-            glVertex3f(bx + 1.002f, by + h + 0.002f, bz - 0.002f);
-            glVertex3f(bx - 0.002f, by + h + 0.002f, bz - 0.002f);
-            glEnd();
-        }
-
         glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
         glLineWidth(2.0f);
         glBegin(GL_LINES);
-        glVertex3f(bx, by, bz); glVertex3f(bx + 1, by, bz);
-        glVertex3f(bx + 1, by, bz); glVertex3f(bx + 1, by, bz + 1);
-        glVertex3f(bx + 1, by, bz + 1); glVertex3f(bx, by, bz + 1);
-        glVertex3f(bx, by, bz + 1); glVertex3f(bx, by, bz);
-        glVertex3f(bx, by + h, bz); glVertex3f(bx + 1, by + h, bz);
-        glVertex3f(bx + 1, by + h, bz); glVertex3f(bx + 1, by + h, bz + 1);
-        glVertex3f(bx + 1, by + h, bz + 1); glVertex3f(bx, by + h, bz + 1);
-        glVertex3f(bx, by + h, bz + 1); glVertex3f(bx, by + h, bz);
-        glVertex3f(bx, by, bz); glVertex3f(bx, by + h, bz);
-        glVertex3f(bx + 1, by, bz); glVertex3f(bx + 1, by + h, bz);
-        glVertex3f(bx + 1, by, bz + 1); glVertex3f(bx + 1, by + h, bz + 1);
-        glVertex3f(bx, by, bz + 1); glVertex3f(bx, by + h, bz + 1);
+        float minX = bx - 0.002f;
+        float maxX = bx + 1.002f;
+        float minY = by - 0.002f;
+        float maxY = by + h + 0.002f;
+        float minZ = bz - 0.002f;
+        float maxZ = bz + 1.002f;
+
+        glVertex3f(minX, minY, minZ); glVertex3f(maxX, minY, minZ);
+        glVertex3f(maxX, minY, minZ); glVertex3f(maxX, minY, maxZ);
+        glVertex3f(maxX, minY, maxZ); glVertex3f(minX, minY, maxZ);
+        glVertex3f(minX, minY, maxZ); glVertex3f(minX, minY, minZ);
+
+        glVertex3f(minX, maxY, minZ); glVertex3f(maxX, maxY, minZ);
+        glVertex3f(maxX, maxY, minZ); glVertex3f(maxX, maxY, maxZ);
+        glVertex3f(maxX, maxY, maxZ); glVertex3f(minX, maxY, maxZ);
+        glVertex3f(minX, maxY, maxZ); glVertex3f(minX, minY, minZ);
+
+        glVertex3f(minX, minY, minZ); glVertex3f(minX, maxY, minZ);
+        glVertex3f(maxX, minY, minZ); glVertex3f(maxX, maxY, minZ);
+        glVertex3f(maxX, minY, maxZ); glVertex3f(maxX, maxY, maxZ);
+        glVertex3f(minX, minY, maxZ); glVertex3f(minX, maxY, maxZ);
         glEnd();
         glLineWidth(1.0f);
 
@@ -808,9 +833,9 @@ public class Game {
     private void scrollCallback(long window, double xoffset, double yoffset) {
         if (currentState == GameState.IN_GAME && !isCommandConsoleOpen) {
             int currentSlot = player.getSelectedSlot();
-            if (yoffset < 0) { // scroll down (from 1 to 9)
+            if (yoffset < 0) {
                 currentSlot = (currentSlot + 1) % 9;
-            } else if (yoffset > 0) { // scroll up (from 9 to 1)
+            } else if (yoffset > 0) {
                 currentSlot = (currentSlot - 1 + 9) % 9;
             }
             player.setSelectedSlot(currentSlot);
