@@ -20,9 +20,11 @@ public class OptionsMenu {
     private final float[] sliderRect = new float[4];
     private final float[] sliderKnobRect = new float[4];
     private final float[] doneButtonRect = new float[4];
+    private final float[] commandsButtonRect = new float[4];
 
     private boolean isDraggingSlider = false;
     private boolean isDoneHovered = false;
+    private boolean isCommandsHovered = false;
     private Game.GameState previousState = Game.GameState.MAIN_MENU;
 
     public OptionsMenu(Game game) {
@@ -41,6 +43,7 @@ public class OptionsMenu {
 
     public void handleMouseMove(double x, double y) {
         isDoneHovered = isMouseOver(x, y, doneButtonRect);
+        isCommandsHovered = isMouseOver(x, y, commandsButtonRect);
 
         if (isDraggingSlider) {
             updateSliderValue(x);
@@ -52,6 +55,9 @@ public class OptionsMenu {
             if (action == GLFW_PRESS) {
                 if (isDoneHovered) {
                     goBack();
+                } else if (isCommandsHovered) {
+                    Game.COMMANDS_ENABLED = !Game.COMMANDS_ENABLED;
+                    WorldSaveManager.saveOptions();
                 } else if (isMouseOver(x, y, sliderRect)) {
                     isDraggingSlider = true;
                     updateSliderValue(x);
@@ -152,10 +158,14 @@ public class OptionsMenu {
         float buttonWidth = 200;
         float buttonHeight = 40;
         float buttonX = (currentW - buttonWidth) / 2;
+        float cmdY = currentH * 0.60f;
         float doneY = currentH * 0.75f;
 
+        commandsButtonRect[0] = buttonX; commandsButtonRect[1] = cmdY; commandsButtonRect[2] = buttonWidth; commandsButtonRect[3] = buttonHeight;
         doneButtonRect[0] = buttonX; doneButtonRect[1] = doneY; doneButtonRect[2] = buttonWidth; doneButtonRect[3] = buttonHeight;
 
+        String cmdText = "Commands: " + (Game.COMMANDS_ENABLED ? "ON" : "OFF");
+        GuiRenderer.drawButton(buttonX, cmdY, buttonWidth, buttonHeight, cmdText, isCommandsHovered, buttonTextureID);
         GuiRenderer.drawButton(buttonX, doneY, buttonWidth, buttonHeight, "Done", isDoneHovered, buttonTextureID);
 
         restore3DRendering();

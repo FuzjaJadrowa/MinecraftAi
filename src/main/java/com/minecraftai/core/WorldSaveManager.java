@@ -1,5 +1,6 @@
 package com.minecraftai.core;
 
+import com.minecraftai.Game;
 import com.minecraftai.blocks.*;
 import java.io.*;
 import java.nio.file.*;
@@ -73,7 +74,6 @@ public class WorldSaveManager {
                 chunksDir.mkdirs();
             }
 
-            // 1. Save level.dat
             File levelFile = new File(worldDir, "level.dat");
             try (PrintWriter pw = new PrintWriter(new FileWriter(levelFile))) {
                 pw.println("seed=" + world.getSeed());
@@ -85,7 +85,6 @@ public class WorldSaveManager {
                 pw.println("playerHealth=" + player.getHealth());
                 pw.println("playerSelectedSlot=" + player.getSelectedSlot());
 
-                // Inventory
                 StringBuilder invSb = new StringBuilder();
                 ItemStack[] inv = player.getInventory();
                 for (int i = 0; i < inv.length; i++) {
@@ -98,7 +97,6 @@ public class WorldSaveManager {
                 pw.println("inventory=" + invSb.toString());
             }
 
-            // 2. Save Chunks
             for (Chunk chunk : world.getChunks().values()) {
                 if (chunk.isModified()) {
                     File chunkFile = new File(chunksDir, "chunk_" + chunk.getWorldX() + "_" + chunk.getWorldZ() + ".dat");
@@ -112,8 +110,7 @@ public class WorldSaveManager {
                             }
                         }
                     }
-                    
-                    // Compress chunk block data using GZIP
+
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     try (GZIPOutputStream gzos = new GZIPOutputStream(baos)) {
                         gzos.write(data);
@@ -132,7 +129,6 @@ public class WorldSaveManager {
             File levelFile = new File(worldDir, "level.dat");
             if (!levelFile.exists()) return;
 
-            // 1. Read level.dat
             BufferedReader br = new BufferedReader(new FileReader(levelFile));
             String line;
             long seed = 0;
@@ -161,21 +157,17 @@ public class WorldSaveManager {
             }
             br.close();
 
-            // Set seed
             world.setSeed(seed);
 
-            // Set Player state
             player.setPosition(px, py, pz);
             player.setYaw(yaw);
             player.setPitch(pitch);
             player.setHealth(health);
             player.setSelectedSlot(selectedSlot);
 
-            // Clear inventory
             ItemStack[] inv = player.getInventory();
             Arrays.fill(inv, null);
 
-            // Load Inventory
             if (!inventoryStr.isEmpty()) {
                 String[] slots = inventoryStr.split(";");
                 for (String slot : slots) {
@@ -198,8 +190,7 @@ public class WorldSaveManager {
             try {
                 byte[] compressedData = Files.readAllBytes(chunkFile.toPath());
                 byte[] decompressedData = new byte[Chunk.CHUNK_SIZE_X * Chunk.CHUNK_SIZE_Y * Chunk.CHUNK_SIZE_Z];
-                
-                // Decompress GZIP chunk block data
+
                 try (GZIPInputStream gzis = new GZIPInputStream(new ByteArrayInputStream(compressedData))) {
                     int bytesRead = 0;
                     while (bytesRead < decompressedData.length) {
@@ -269,6 +260,21 @@ public class WorldSaveManager {
                         }
                     }
                 }
+                int cmdIdx = content.indexOf("commandsEnabled");
+                if (cmdIdx != -1) {
+                    int colonIdx = content.indexOf(":", cmdIdx);
+                    if (colonIdx != -1) {
+                        int endIdx = content.indexOf("\n", colonIdx);
+                        if (endIdx == -1) endIdx = content.indexOf("}", colonIdx);
+                        if (endIdx != -1) {
+                            String valStr = content.substring(colonIdx + 1, endIdx).trim();
+                            if (valStr.endsWith(",")) {
+                                valStr = valStr.substring(0, valStr.length() - 1).trim();
+                            }
+                            Game.COMMANDS_ENABLED = Boolean.parseBoolean(valStr);
+                        }
+                    }
+                }
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -280,7 +286,7 @@ public class WorldSaveManager {
         File parentDir = file.getParentFile();
         if (!parentDir.exists()) parentDir.mkdirs();
         try {
-            String json = "{\n  \"renderDistance\": " + World.RENDER_DISTANCE + "\n}";
+            String json = "{\n  \"renderDistance\": " + World.RENDER_DISTANCE + ",\n  \"commandsEnabled\": " + Game.COMMANDS_ENABLED + "\n}";
             Files.writeString(file.toPath(), json);
         } catch (Exception e) {
             e.printStackTrace();

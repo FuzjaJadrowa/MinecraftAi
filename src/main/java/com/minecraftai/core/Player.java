@@ -13,7 +13,7 @@ public class Player {
     private boolean isSprinting = false;
     private float walkTime = 0.0f;
     private float yaw, pitch;
-    private final float speed = 0.07f;
+    private float speed = 0.07f;
     private float velocityY = 0;
     private final float gravity = 0.008f;
     private final float jumpStrength = 0.14f;
@@ -63,7 +63,11 @@ public class Player {
     }
 
     public void handleInput(long window) {
-        if (isDead) return;
+        handleInput(window, false);
+    }
+
+    public void handleInput(long window, boolean noInput) {
+        if (isDead || noInput) return;
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
             tryPlaceBlock(world);
         }
@@ -151,47 +155,54 @@ public class Player {
         glDisable(GL_BLEND);
     }
 
+
     private void drawTexturedBox(float x1, float y1, float z1, float x2, float y2, float z2, int u, int v, int w, int h, int d) {
         float tw = 64.0f;
         float th = 64.0f;
 
         glBegin(GL_QUADS);
 
+        // TOP (Y = y2, normal = [0, 1, 0])
         glNormal3f(0.0f, 1.0f, 0.0f);
-        glTexCoord2f((u + d) / tw, v / th);                 glVertex3f(x1, y2, z1);
-        glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y2, z2);
-        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y2, z2);
-        glTexCoord2f((u + d + w) / tw, v / th);             glVertex3f(x2, y2, z1);
+        glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y2, z1);
+        glTexCoord2f((u + d) / tw, v / th);                 glVertex3f(x1, y2, z2);
+        glTexCoord2f((u + d + w) / tw, v / th);             glVertex3f(x2, y2, z2);
+        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y2, z1);
 
+        // BOTTOM (Y = y1, normal = [0, -1, 0])
         glNormal3f(0.0f, -1.0f, 0.0f);
-        glTexCoord2f((u + d + w) / tw, v / th);             glVertex3f(x1, y1, z1);
-        glTexCoord2f((u + d + 2 * w) / tw, v / th);         glVertex3f(x2, y1, z1);
-        glTexCoord2f((u + d + 2 * w) / tw, (v + d) / th);     glVertex3f(x2, y1, z2);
-        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x1, y1, z2);
+        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x1, y1, z1);
+        glTexCoord2f((u + d + 2 * w) / tw, (v + d) / th);     glVertex3f(x2, y1, z1);
+        glTexCoord2f((u + d + 2 * w) / tw, v / th);         glVertex3f(x2, y1, z2);
+        glTexCoord2f((u + d + w) / tw, v / th);             glVertex3f(x1, y1, z2);
 
-        glNormal3f(0.0f, 0.0f, 1.0f);
-        glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y1, z2);
-        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y1, z2);
-        glTexCoord2f((u + d + w) / tw, (v + d + h) / th);     glVertex3f(x2, y2, z2);
-        glTexCoord2f((u + d) / tw, (v + d + h) / th);         glVertex3f(x1, y2, z2);
-
+        // FRONT (Z = z1, normal = [0, 0, -1])
         glNormal3f(0.0f, 0.0f, -1.0f);
-        glTexCoord2f((u + 2 * d + 2 * w) / tw, (v + d) / th); glVertex3f(x2, y1, z1);
-        glTexCoord2f((u + 2 * d + 2 * w) / tw, (v + d + h) / th); glVertex3f(x2, y2, z1);
-        glTexCoord2f((u + 2 * d + w) / tw, (v + d + h) / th); glVertex3f(x1, y2, z1);
-        glTexCoord2f((u + 2 * d + w) / tw, (v + d) / th);     glVertex3f(x1, y1, z1);
+        glTexCoord2f((u + d) / tw, (v + d + h) / th);         glVertex3f(x1, y1, z1);
+        glTexCoord2f((u + d + w) / tw, (v + d + h) / th);     glVertex3f(x2, y1, z1);
+        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y2, z1);
+        glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y2, z1);
 
+        // BACK (Z = z2, normal = [0, 0, 1])
+        glNormal3f(0.0f, 0.0f, 1.0f);
+        glTexCoord2f((u + 2 * d + 2 * w) / tw, (v + d + h) / th); glVertex3f(x1, y1, z2);
+        glTexCoord2f((u + 2 * d + w) / tw, (v + d + h) / th);     glVertex3f(x2, y1, z2);
+        glTexCoord2f((u + 2 * d + w) / tw, (v + d) / th);         glVertex3f(x2, y2, z2);
+        glTexCoord2f((u + 2 * d + 2 * w) / tw, (v + d) / th);     glVertex3f(x1, y2, z2);
+
+        // RIGHT (X = x2, normal = [1, 0, 0])
         glNormal3f(1.0f, 0.0f, 0.0f);
-        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y1, z2);
-        glTexCoord2f((u + 2 * d + w) / tw, (v + d) / th);     glVertex3f(x2, y1, z1);
-        glTexCoord2f((u + 2 * d + w) / tw, (v + d + h) / th); glVertex3f(x2, y2, z1);
-        glTexCoord2f((u + d + w) / tw, (v + d + h) / th);     glVertex3f(x2, y2, z2);
+        glTexCoord2f((u + d + w) / tw, (v + d + h) / th);     glVertex3f(x2, y1, z2);
+        glTexCoord2f((u + 2 * d + w) / tw, (v + d + h) / th); glVertex3f(x2, y1, z1);
+        glTexCoord2f((u + 2 * d + w) / tw, (v + d) / th);     glVertex3f(x2, y2, z1);
+        glTexCoord2f((u + d + w) / tw, (v + d) / th);         glVertex3f(x2, y2, z2);
 
+        // LEFT (X = x1, normal = [-1, 0, 0])
         glNormal3f(-1.0f, 0.0f, 0.0f);
-        glTexCoord2f(u / tw, (v + d) / th);                 glVertex3f(x1, y1, z1);
-        glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y1, z2);
-        glTexCoord2f((u + d) / tw, (v + d + h) / th);         glVertex3f(x1, y2, z2);
-        glTexCoord2f(u / tw, (v + d + h) / th);             glVertex3f(x1, y2, z1);
+        glTexCoord2f((u + d) / tw, (v + d + h) / th);         glVertex3f(x1, y1, z1);
+        glTexCoord2f(u / tw, (v + d + h) / th);             glVertex3f(x1, y1, z2);
+        glTexCoord2f(u / tw, (v + d) / th);                 glVertex3f(x1, y2, z2);
+        glTexCoord2f((u + d) / tw, (v + d) / th);             glVertex3f(x1, y2, z1);
 
         glEnd();
     }
@@ -255,6 +266,10 @@ public class Player {
     }
 
     public void update(long window, double dt) {
+        update(window, dt, false);
+    }
+
+    public void update(long window, double dt, boolean noInput) {
         if (isDead) {
             velocityY = 0;
             return;
@@ -264,10 +279,11 @@ public class Player {
         prevY = y;
         prevZ = z;
 
-        boolean isBreaking = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
-        Block target = getTargetBlock(world, 4.5f);
+        boolean isBreaking = !noInput && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+        Block target = noInput ? null : getTargetBlock(world, 4.5f);
 
         if (isBreaking && target != null) {
+
             if (currentTargetBlock != null &&
                     target.getX() == targetX &&
                     target.getY() == targetY &&
@@ -301,13 +317,15 @@ public class Player {
         float inputX = 0;
         float inputZ = 0;
 
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) inputZ += 1;
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) inputZ -= 1;
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) inputX -= 1;
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) inputX += 1;
+        if (!noInput) {
+            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) inputZ += 1;
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) inputZ -= 1;
+            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) inputX -= 1;
+            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) inputX += 1;
+        }
 
         isSprinting = false;
-        if (inputX != 0 || inputZ != 0) {
+        if (!noInput && (inputX != 0 || inputZ != 0)) {
             isSprinting = glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS && inputZ > 0;
 
             float speedMultiplier = 1.0f;
@@ -354,7 +372,7 @@ public class Player {
             y = nextY;
         }
 
-        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && onGround()) {
+        if (!noInput && glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && onGround()) {
             velocityY = jumpStrength;
         }
 
@@ -416,6 +434,7 @@ public class Player {
                 return 1.0f;
         }
     }
+
 
     private boolean onGround() {
         return collides(x, y - 0.05f, z);
@@ -652,6 +671,17 @@ public class Player {
     public float getX() { return x; }
     public float getY() { return y; }
     public float getZ() { return z; }
+    public void setX(float x) { this.x = x; }
+    public void setY(float y) { this.y = y; }
+    public void setZ(float z) { this.z = z; }
+    public void setVelocityY(float vy) { this.velocityY = vy; }
+    public void resetPrevPosition() {
+        this.prevX = this.x;
+        this.prevY = this.y;
+        this.prevZ = this.z;
+    }
+    public float getSpeed() { return speed; }
+    public void setSpeed(float speed) { this.speed = speed; }
     public World getWorld() { return world; }
 
     public int getSelectedSlot() {

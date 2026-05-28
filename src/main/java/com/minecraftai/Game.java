@@ -46,9 +46,13 @@ public class Game {
     private int fps = 0;
     private int frameCount = 0;
     private double fpsTimer = 0.0;
-    private float timeOfDay = 6000.0f; // Noon (starts at midday)
+    private float timeOfDay = 6000.0f;
     private int sunTextureID;
     private int moonTextureID;
+
+    public static boolean COMMANDS_ENABLED = false;
+    public boolean isCommandConsoleOpen = false;
+    private String commandInput = "";
 
     public static void main(String[] args) {
         Game game = new Game();
@@ -80,6 +84,8 @@ public class Game {
         glfwSetKeyCallback(window, this::keyCallback);
         glfwSetCursorPosCallback(window, this::cursorPosCallback);
         glfwSetMouseButtonCallback(window, this::mouseButtonCallback);
+        glfwSetCharCallback(window, this::charCallback);
+        glfwSetScrollCallback(window, this::scrollCallback);
 
         glfwMakeContextCurrent(window);
         glfwSwapInterval(1);
@@ -114,6 +120,24 @@ public class Game {
     }
 
     private void keyCallback(long window, int key, int scancode, int action, int mods) {
+        if (currentState == GameState.IN_GAME && isCommandConsoleOpen) {
+            if (action == GLFW_PRESS || action == GLFW_REPEAT) {
+                if (key == GLFW_KEY_ESCAPE) {
+                    isCommandConsoleOpen = false;
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                } else if (key == GLFW_KEY_BACKSPACE) {
+                    if (commandInput.length() > 0) {
+                        commandInput = commandInput.substring(0, commandInput.length() - 1);
+                    }
+                } else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS) {
+                    executeCommand(commandInput);
+                    isCommandConsoleOpen = false;
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+                }
+            }
+            return;
+        }
+
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
             if (currentState == GameState.IN_GAME) {
                 pauseGame();
@@ -132,6 +156,12 @@ public class Game {
 
         if (action == GLFW_PRESS) {
             if (currentState == GameState.IN_GAME) {
+                if (COMMANDS_ENABLED && key == GLFW_KEY_SLASH) {
+                    isCommandConsoleOpen = true;
+                    commandInput = "";
+                    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                    return;
+                }
                 if (key == GLFW_KEY_F3) {
                     showDebug = !showDebug;
                 }
@@ -163,7 +193,9 @@ public class Game {
         lastY = ypos;
 
         if (currentState == GameState.IN_GAME) {
-            player.addRotation((float) dx, (float) dy);
+            if (!isCommandConsoleOpen) {
+                player.addRotation((float) dx, (float) dy);
+            }
         } else if (currentState == GameState.MAIN_MENU) {
             mainMenu.handleMouseMove(xpos, ypos);
         } else if (currentState == GameState.PLAY_MENU) {
@@ -208,7 +240,6 @@ public class Game {
             if (deltaTime > 0.1) deltaTime = 0.1;
             this.lastDeltaTime = (float) deltaTime;
 
-            // Obliczanie FPS
             frameCount++;
             fpsTimer += deltaTime;
             if (fpsTimer >= 1.0) {
@@ -218,7 +249,7 @@ public class Game {
             }
 
             if (currentState == GameState.IN_GAME || currentState == GameState.INVENTORY) {
-                timeOfDay += deltaTime * 20.0f; // 20-minute full cycle (10 min day, 10 min night)
+                timeOfDay += deltaTime * 20.0f;
                 if (timeOfDay >= 24000.0f) {
                     timeOfDay -= 24000.0f;
                 }
@@ -227,12 +258,13 @@ public class Game {
             if (currentState == GameState.IN_GAME) {
                 accumulator += deltaTime;
                 while (accumulator >= PHYSICS_STEP) {
-                    player.handleInput(window);
-                    player.update(window, PHYSICS_STEP);
+                    player.handleInput(window, isCommandConsoleOpen);
+                    player.update(window, PHYSICS_STEP, isCommandConsoleOpen);
                     world.updateDroppedItems((float) PHYSICS_STEP, player);
                     accumulator -= PHYSICS_STEP;
                 }
                 if (player.isDead()) {
+                    isCommandConsoleOpen = false;
                     currentState = GameState.DEATH;
                     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
                 }
@@ -276,18 +308,15 @@ public class Game {
         glfwGetFramebufferSize(window, width, height);
         float aspect = (float) width[0] / height[0];
         glViewport(0, 0, width[0], height[0]);
-        // Płynny efekt zmiany FOV podczas sprintu (Minecraft sprint FOV effect) z delta time
         float targetFov = (player != null && player.isSprinting()) ? 78.0f : 70.0f;
         float transitionFactor = Math.min(1.0f, 6.0f * lastDeltaTime);
         currentFov += (targetFov - currentFov) * transitionFactor;
 
-        // Dynamiczne dopasowanie zFar do Render Distance dla uniknięcia czarnej linii odcięcia terenu
         float farClip = Math.max(100.0f, World.RENDER_DISTANCE * 16.0f * 1.5f);
         perspective(currentFov, aspect, 0.1f, farClip);
 
         player.applyCameraTransform(alpha, cameraMode);
 
-        // Update directional light position in world space after applying camera transform
         float angle = (timeOfDay / 24000.0f) * 360.0f - 90.0f;
         float angleRad = (float) Math.toRadians(angle);
         float lx = (float) -Math.sin(angleRad);
@@ -303,15 +332,15 @@ public class Game {
         world.render(player);
         player.renderPlayerModel(alpha, cameraMode);
 
-        // Rysowanie ramki zaznaczenia i nakładki pękania bloku
         renderBreakingBlockOverlay();
 
         if (hotbar != null) {
             hotbar.render(window);
         }
 
-        // Renderowanie ekranu debugowania F3
         renderDebugInfo();
+
+        renderCommandConsole();
     }
 
     private void renderBreakingBlockOverlay() {
@@ -455,6 +484,7 @@ public class Game {
     }
 
     public void pauseGame() {
+        isCommandConsoleOpen = false;
         setGameState(GameState.PAUSE_MENU);
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
@@ -607,7 +637,7 @@ public class Game {
             r = lerp(0.7f, 0.9f, f);
             g = lerp(0.4f, 0.6f, f);
             b = lerp(0.3f, 0.4f, f);
-        } else { // time >= 0 && time < 400
+        } else {
             float f = time / 400.0f;
             r = lerp(0.9f, 0.5f, f);
             g = lerp(0.6f, 0.7f, f);
@@ -630,7 +660,6 @@ public class Game {
         float skyAngle = (timeOfDay / 24000.0f) * 360.0f - 90.0f;
         glRotatef(skyAngle, 0.0f, 0.0f, 1.0f);
 
-        // Draw Sun
         glBindTexture(GL_TEXTURE_2D, sunTextureID);
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
         glBegin(GL_QUADS);
@@ -642,7 +671,6 @@ public class Game {
         glTexCoord2f(0.0f, 0.0f); glVertex3f(-sunSize, sunDist, -sunSize);
         glEnd();
 
-        // Draw Moon
         glBindTexture(GL_TEXTURE_2D, moonTextureID);
         glBegin(GL_QUADS);
         float moonSize = 10.0f;
@@ -660,6 +688,133 @@ public class Game {
         glDepthMask(true);
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_LIGHTING);
+    }
+
+    private void charCallback(long window, int codepoint) {
+        if (currentState == GameState.IN_GAME && isCommandConsoleOpen) {
+            if (commandInput.length() < 100) {
+                commandInput += (char) codepoint;
+            }
+        }
+    }
+
+    private void executeCommand(String commandLine) {
+        if (commandLine == null || commandLine.trim().isEmpty()) return;
+
+        String cmd = commandLine.trim();
+        if (!cmd.startsWith("/")) return;
+
+        String[] parts = cmd.substring(1).split("\\s+");
+        if (parts.length == 0) return;
+
+        String commandName = parts[0].toLowerCase();
+        switch (commandName) {
+            case "tp":
+                if (parts.length >= 4) {
+                    try {
+                        float tx = Float.parseFloat(parts[1]);
+                        float ty = Float.parseFloat(parts[2]);
+                        float tz = Float.parseFloat(parts[3]);
+
+                        float maxCoord = 2147483500.0f;
+                        if (tx > maxCoord) tx = maxCoord;
+                        if (tx < -maxCoord) tx = -maxCoord;
+                        if (ty > 128.0f) ty = 128.0f;
+                        if (ty < 0.0f) ty = 0.0f;
+                        if (tz > maxCoord) tz = maxCoord;
+                        if (tz < -maxCoord) tz = -maxCoord;
+
+                        player.setX(tx);
+                        player.setY(ty);
+                        player.setZ(tz);
+                        player.setVelocityY(0);
+                        player.resetPrevPosition();
+                    } catch (NumberFormatException e) {
+                        System.err.println("Invalid coordinate format in /tp command!");
+                    }
+                }
+                break;
+            case "speed":
+                if (parts.length >= 2) {
+                    String speedArg = parts[1].toLowerCase();
+                    if (speedArg.equals("default")) {
+                        player.setSpeed(0.07f);
+                    } else {
+                        try {
+                            float val = Float.parseFloat(speedArg);
+                            if (val < 0.01f) val = 0.01f;
+                            if (val > 5.0f) val = 5.0f;
+                            player.setSpeed(val);
+                        } catch (NumberFormatException e) {
+                            System.err.println("Invalid speed value!");
+                        }
+                    }
+                }
+                break;
+            default:
+                System.err.println("Unknown command: " + commandName);
+                break;
+        }
+    }
+
+    private void renderCommandConsole() {
+        if (!isCommandConsoleOpen) return;
+
+        int[] width = new int[1];
+        int[] height = new int[1];
+        glfwGetFramebufferSize(window, width, height);
+        float currentW = width[0];
+        float currentH = height[0];
+
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0, currentW, currentH, 0, -1, 1);
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+
+        glDisable(GL_LIGHTING);
+        glDisable(GL_TEXTURE_2D);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        float barY = currentH - 35;
+        float barHeight = 24;
+        float padding = 8;
+        
+        glColor4f(0.0f, 0.0f, 0.0f, 0.6f);
+        glBegin(GL_QUADS);
+        glVertex2f(padding, barY);
+        glVertex2f(currentW - padding, barY);
+        glVertex2f(currentW - padding, barY + barHeight);
+        glVertex2f(padding, barY + barHeight);
+        glEnd();
+
+        glDisable(GL_BLEND);
+
+        String cursor = (System.currentTimeMillis() / 500) % 2 == 0 ? "_" : "";
+        String displayText = commandInput + cursor;
+
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        FontRenderer.drawString(displayText, padding + 6, barY + 6);
+
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
+    }
+
+    private void scrollCallback(long window, double xoffset, double yoffset) {
+        if (currentState == GameState.IN_GAME && !isCommandConsoleOpen) {
+            int currentSlot = player.getSelectedSlot();
+            if (yoffset < 0) { // scroll down (from 1 to 9)
+                currentSlot = (currentSlot + 1) % 9;
+            } else if (yoffset > 0) { // scroll up (from 9 to 1)
+                currentSlot = (currentSlot - 1 + 9) % 9;
+            }
+            player.setSelectedSlot(currentSlot);
+        }
     }
 
     public Player getPlayer() {
