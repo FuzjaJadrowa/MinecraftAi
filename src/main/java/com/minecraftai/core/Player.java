@@ -1,6 +1,7 @@
 package com.minecraftai.core;
 
 import com.minecraftai.blocks.*;
+import com.minecraftai.entities.SulfurCube;
 import com.minecraftai.renderer.TextureLoader;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -68,10 +69,12 @@ public class Player {
     public void handleInput(long window, boolean noInput) {
         if (isDead || noInput) return;
         if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+            SulfurCube targetCube = getTargetCube(world, 4.5f);
+            if (targetCube != null) {
+                return;
+            }
             Block target = getTargetBlock(world, 4.5f);
             if (target instanceof CraftingTable || target instanceof Furnace) {
-                // Interacting with a block, do not try to place a block on it.
-                // The menu opening is handled by the mouse click callback in Game.java.
             } else {
                 tryPlaceBlock(world);
             }
@@ -279,6 +282,10 @@ public class Player {
         prevZ = z;
 
         boolean isBreaking = !noInput && glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS;
+        SulfurCube targetCube = noInput ? null : getTargetCube(world, 4.5f);
+        if (targetCube != null) {
+            isBreaking = false;
+        }
         Block target = noInput ? null : getTargetBlock(world, 4.5f);
 
         if (isBreaking && target != null) {
@@ -370,7 +377,6 @@ public class Player {
             dz = (float) (nx * sin - nz * cos) * speed * speedMultiplier;
         }
 
-        // Apply water current push force
         Block playerBlock = world.getBlockAt((int) Math.floor(x), (int) Math.floor(y + 0.1f), (int) Math.floor(z));
         if (playerBlock instanceof Water || playerBlock instanceof FlowingWater) {
             int level = (playerBlock instanceof Water) ? 8 : ((FlowingWater) playerBlock).getLevel();
@@ -391,7 +397,7 @@ public class Player {
                 if (length > 0) {
                     pushX /= length;
                     pushZ /= length;
-                    float pushSpeed = 0.012f; // Slight water current push speed
+                    float pushSpeed = 0.012f;
                     dx += pushX * pushSpeed;
                     dz += pushZ * pushSpeed;
                 }
@@ -936,6 +942,41 @@ public class Player {
 
         glMatrixMode(GL_PROJECTION);
         glPopMatrix();
+    }
+
+    public SulfurCube getTargetCube(World world, float maxDistance) {
+        if (world == null) return null;
+        float eyeX = x;
+        float eyeY = y + eyeHeight;
+        float eyeZ = z;
+        
+        float radYaw = (float) Math.toRadians(yaw);
+        float radPitch = (float) Math.toRadians(pitch);
+        float dirX = (float) (Math.sin(radYaw) * Math.cos(radPitch));
+        float dirY = (float) (Math.sin(radPitch));
+        float dirZ = (float) (-Math.cos(radYaw) * Math.cos(radPitch));
+        
+        SulfurCube bestCube = null;
+        float bestDist = maxDistance;
+        
+        for (SulfurCube cube : world.getSulfurCubes()) {
+            float cx = cube.getX();
+            float cy = cube.getY() + cube.getSize() / 2.0f;
+            float cz = cube.getZ();
+            
+            float dx = cx - eyeX;
+            float dy = cy - eyeY;
+            float dz = cz - eyeZ;
+            float dist = (float) Math.sqrt(dx*dx + dy*dy + dz*dz);
+            if (dist < bestDist) {
+                float dot = (dx*dirX + dy*dirY + dz*dirZ) / dist;
+                if (dot > 0.95f) {
+                    bestCube = cube;
+                    bestDist = dist;
+                }
+            }
+        }
+        return bestCube;
     }
 
     private int getWaterLevelAt(int x, int y, int z) {

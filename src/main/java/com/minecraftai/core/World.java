@@ -3,6 +3,8 @@ package com.minecraftai.core;
 import com.minecraftai.blocks.Water;
 import com.minecraftai.blocks.FlowingWater;
 import com.minecraftai.blocks.Furnace;
+import com.minecraftai.entities.SulfurCube;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +17,7 @@ import static org.lwjgl.opengl.GL11.*;
 public class World {
     private Map<String, Chunk> chunks = new ConcurrentHashMap<>();
     private List<DroppedItem> droppedItems = new CopyOnWriteArrayList<>();
+    private final java.util.List<SulfurCube> sulfurCubes = new java.util.concurrent.CopyOnWriteArrayList<>();
     private PerlinNoise noiseGen;
     private double waterTickTimer = 0.0;
     private int chunksGeneratedThisFrame = 0;
@@ -165,6 +168,9 @@ public class World {
         glDepthMask(true);
         glDisable(GL_BLEND);
 
+        for (SulfurCube cube : sulfurCubes) {
+            cube.render(player);
+        }
         renderDroppedItems();
     }
 
@@ -425,6 +431,10 @@ public class World {
         }
     }
 
+    public void queueWaterUpdate(int x, int y, int z) {
+        activeWaterPos.add(new BlockPos(x, y, z));
+    }
+
     public void updateWater(double dt) {
         waterTickTimer += dt;
         if (waterTickTimer >= 0.15) {
@@ -549,9 +559,17 @@ public class World {
         }
     }
 
-    public void queueWaterUpdate(int x, int y, int z) {
-        if (y >= 0 && y < Chunk.CHUNK_SIZE_Y) {
-            activeWaterPos.add(new BlockPos(x, y, z));
+    public java.util.List<SulfurCube> getSulfurCubes() {
+        return sulfurCubes;
+    }
+
+    public void spawnSulfurCube(float x, float y, float z) {
+        sulfurCubes.add(new SulfurCube(x, y, z));
+    }
+
+    public void updateSulfurCubes(float dt, Player player) {
+        for (SulfurCube cube : sulfurCubes) {
+            cube.update(dt, this, player);
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.minecraftai;
 
 import com.minecraftai.core.*;
+import com.minecraftai.entities.SulfurCube;
 import com.minecraftai.gui.*;
 import com.minecraftai.renderer.*;
 import com.minecraftai.blocks.*;
@@ -266,6 +267,11 @@ public class Game {
             deathMenu.handleMouseClick(lastX, lastY, button, action);
         } else if (currentState == GameState.IN_GAME) {
             if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+                SulfurCube hitCube = getTargetCube(4.5f);
+                if (hitCube != null) {
+                    interactWithCube(hitCube);
+                    return;
+                }
                 Block target = player.getTargetBlock(world, 4.5f);
                 if (target instanceof CraftingTable) {
                     currentState = GameState.CRAFTING_TABLE;
@@ -275,6 +281,12 @@ public class Game {
                     currentState = GameState.FURNACE;
                     furnaceMenu.setBlock((Furnace) target);
                     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+                }
+            } else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+                SulfurCube hitCube = getTargetCube(4.5f);
+                if (hitCube != null) {
+                    pushCube(hitCube);
+                    return;
                 }
             }
         }
@@ -326,6 +338,7 @@ public class Game {
                     world.updateDroppedItems((float) PHYSICS_STEP, player);
                     world.updateWater(PHYSICS_STEP);
                     world.updateFurnaces(PHYSICS_STEP);
+                    world.updateSulfurCubes((float) PHYSICS_STEP, player);
                     accumulator -= PHYSICS_STEP;
                 }
                 if (player.isDead()) {
@@ -942,6 +955,19 @@ public class Game {
                 oreVisionTimer = 10.0;
                 addChatMessage("Ore vision activated for 10 seconds!");
                 break;
+            case "summon":
+                if (parts.length >= 2) {
+                    String entityName = parts[1].toLowerCase();
+                    if (entityName.equals("sulfur_cube")) {
+                        world.spawnSulfurCube(player.getX(), player.getY(), player.getZ());
+                        addChatMessage("Summoned sulfur_cube at player's position.");
+                    } else {
+                        addChatMessage("Unknown entity: " + entityName);
+                    }
+                } else {
+                    addChatMessage("Usage: /summon <entity>");
+                }
+                break;
             default:
                 addChatMessage("Unknown command: " + commandName);
                 break;
@@ -1162,19 +1188,105 @@ public class Game {
         float minZ = bz - 0.002f;
         float maxZ = bz + 1.002f;
 
+        // Bottom quad
         glVertex3f(minX, minY, minZ); glVertex3f(maxX, minY, minZ);
         glVertex3f(maxX, minY, minZ); glVertex3f(maxX, minY, maxZ);
         glVertex3f(maxX, minY, maxZ); glVertex3f(minX, minY, maxZ);
         glVertex3f(minX, minY, maxZ); glVertex3f(minX, minY, minZ);
 
+        // Top quad
         glVertex3f(minX, maxY, minZ); glVertex3f(maxX, maxY, minZ);
         glVertex3f(maxX, maxY, minZ); glVertex3f(maxX, maxY, maxZ);
         glVertex3f(maxX, maxY, maxZ); glVertex3f(minX, maxY, maxZ);
         glVertex3f(minX, maxY, maxZ); glVertex3f(minX, maxY, minZ);
 
+        // Vertical pillars
         glVertex3f(minX, minY, minZ); glVertex3f(minX, maxY, minZ);
         glVertex3f(maxX, minY, minZ); glVertex3f(maxX, maxY, minZ);
         glVertex3f(maxX, minY, maxZ); glVertex3f(maxX, maxY, maxZ);
         glVertex3f(minX, minY, maxZ); glVertex3f(minX, maxY, maxZ);
+    }
+
+    private SulfurCube getTargetCube(float maxDistance) {
+        if (world == null || player == null) return null;
+        
+        float eyeX = player.getX();
+        float eyeY = player.getY() + 1.7f;
+        float eyeZ = player.getZ();
+        
+        float radYaw = (float) Math.toRadians(player.getYaw());
+        float radPitch = (float) Math.toRadians(player.getPitch());
+        float dirX = (float) (Math.sin(radYaw) * Math.cos(radPitch));
+        float dirY = (float) (Math.sin(radPitch));
+        float dirZ = (float) (-Math.cos(radYaw) * Math.cos(radPitch));
+        
+        SulfurCube bestCube = null;
+        float bestDist = maxDistance;
+        
+        for (SulfurCube cube : world.getSulfurCubes()) {
+            float cx = cube.getX();
+            float cy = cube.getY() + cube.getSize() / 2.0f;
+            float cz = cube.getZ();
+            
+            float dx = cx - eyeX;
+            float dy = cy - eyeY;
+            float dz = cz - eyeZ;
+            float dist = (float) Math.sqrt(dx*dx + dy*dy + dz*dz);
+            if (dist < bestDist) {
+                float dot = (dx*dirX + dy*dirY + dz*dirZ) / dist;
+                if (dot > 0.95f) {
+                    bestCube = cube;
+                    bestDist = dist;
+                }
+            }
+        }
+        return bestCube;
+    }
+
+    private void interactWithCube(SulfurCube cube) {
+        ItemStack[] inventory = player.getInventory();
+        int selectedSlot = player.getSelectedSlot();
+        ItemStack held = inventory[selectedSlot];
+        
+        if (cube.getAbsorbedBlock() == null) {
+            if (held != null) {
+                ItemType type = held.getType();
+                if (type == ItemType.LOG || type == ItemType.PLANKS || type == ItemType.COBBLESTONE) {
+                    cube.setAbsorbedBlock(type);
+                    held.setCount(held.getCount() - 1);
+                    if (held.getCount() <= 0) {
+                        inventory[selectedSlot] = null;
+                    }
+                    addChatMessage("Sulfur Cube has absorbed " + type.name().toLowerCase() + "!");
+                }
+            }
+        } else {
+            if (held == null) {
+                ItemType type = cube.getAbsorbedBlock();
+                player.addItem(type);
+                cube.setAbsorbedBlock(null);
+                addChatMessage("Retrieved " + type.name().toLowerCase() + " from Sulfur Cube!");
+            }
+        }
+    }
+
+    private void pushCube(SulfurCube cube) {
+        float radYaw = (float) Math.toRadians(player.getYaw());
+        float radPitch = (float) Math.toRadians(player.getPitch());
+        float dirX = (float) (Math.sin(radYaw) * Math.cos(radPitch));
+        float dirY = (float) (Math.sin(radPitch));
+        float dirZ = (float) (-Math.cos(radYaw) * Math.cos(radPitch));
+        
+        float pushForce = 5.0f;
+        ItemType absorbed = cube.getAbsorbedBlock();
+        if (absorbed == ItemType.COBBLESTONE) {
+            pushForce = 2.5f;
+        } else if (absorbed == ItemType.LOG || absorbed == ItemType.PLANKS) {
+            pushForce = 8.0f;
+        } else {
+            pushForce = 3.5f;
+        }
+        
+        cube.setVelocities(dirX * pushForce, dirY * pushForce + 2.0f, dirZ * pushForce);
     }
 }

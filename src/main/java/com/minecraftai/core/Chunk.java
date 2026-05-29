@@ -73,7 +73,6 @@ public class Chunk {
                             continue;
                         }
 
-                        // Bedrock na samym dole mapy (niezniszczalny)
                         if (y == 0) {
                             setBlock(x, y, z, new Bedrock(globalX, y, globalZ), false);
                             continue;
@@ -116,6 +115,28 @@ public class Chunk {
                         int y = surfaceHeights[x][z] + 1;
 
                         Tree.generateTree(world, globalX, y, globalZ);
+                    }
+                }
+            }
+
+            if (random.nextInt(30) == 0) {
+                for (int attempt = 0; attempt < 50; attempt++) {
+                    int rx = random.nextInt(CHUNK_SIZE_X);
+                    int rz = random.nextInt(CHUNK_SIZE_Z);
+                    int ry = random.nextInt(CHUNK_SIZE_Y - 5) + 2;
+
+                    if (blocks[rx][ry][rz] == null && ry < surfaceHeights[rx][rz]) {
+                        Block below = blocks[rx][ry - 1][rz];
+                        if (below != null && below.isSolid()) {
+                            Block above = (ry + 1 < CHUNK_SIZE_Y) ? blocks[rx][ry + 1][rz] : null;
+                            if (above == null) {
+                                float spawnX = startX + rx + 0.5f;
+                                float spawnY = ry;
+                                float spawnZ = startZ + rz + 0.5f;
+                                world.spawnSulfurCube(spawnX, spawnY, spawnZ);
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -209,7 +230,7 @@ public class Chunk {
         glPushMatrix();
         glTranslatef(worldX * CHUNK_SIZE_X, 0, worldZ * CHUNK_SIZE_Z);
 
-        glColor4f(1.0f, 1.0f, 1.0f, 0.7f); // Water transparency
+        glColor4f(1.0f, 1.0f, 1.0f, 0.7f);
         glBegin(GL_QUADS);
         for (int x = 0; x < CHUNK_SIZE_X; x++) {
             for (int y = 0; y < CHUNK_SIZE_Y; y++) {
@@ -222,7 +243,7 @@ public class Chunk {
             }
         }
         glEnd();
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f); // Reset color
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
         glPopMatrix();
 
@@ -337,7 +358,7 @@ public class Chunk {
             glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y + h, z);
             glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y + h, z);
         }
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f); // Reset color
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     private boolean shouldRenderFace(Block current, Block neighbor, boolean isSideFace) {
