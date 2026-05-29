@@ -66,7 +66,7 @@ public class WorldSaveManager {
         folder.delete();
     }
 
-    public static void saveWorld(World world, Player player, String worldName) {
+    public static void saveWorld(World world, Player player, float timeOfDay, String worldName) {
         try {
             File worldDir = getWorldDir(worldName);
             File chunksDir = new File(worldDir, "chunks");
@@ -77,6 +77,7 @@ public class WorldSaveManager {
             File levelFile = new File(worldDir, "level.dat");
             try (PrintWriter pw = new PrintWriter(new FileWriter(levelFile))) {
                 pw.println("seed=" + world.getSeed());
+                pw.println("timeOfDay=" + timeOfDay);
                 pw.println("playerX=" + player.getX());
                 pw.println("playerY=" + player.getY());
                 pw.println("playerZ=" + player.getZ());
@@ -91,7 +92,7 @@ public class WorldSaveManager {
                     ItemStack stack = inv[i];
                     if (stack != null) {
                         if (invSb.length() > 0) invSb.append(";");
-                        invSb.append(i).append(":").append(stack.getType().name()).append(":").append(stack.getCount());
+                        invSb.append(i).append(":").append(stack.getType().name()).append(":").append(stack.getCount()).append(":").append(stack.getDurability());
                     }
                 }
                 pw.println("inventory=" + invSb.toString());
@@ -123,11 +124,12 @@ public class WorldSaveManager {
         }
     }
 
-    public static void loadWorld(World world, Player player, String worldName) {
+    public static float loadWorld(World world, Player player, String worldName) {
+        float timeOfDay = 6000.0f;
         try {
             File worldDir = getWorldDir(worldName);
             File levelFile = new File(worldDir, "level.dat");
-            if (!levelFile.exists()) return;
+            if (!levelFile.exists()) return timeOfDay;
 
             BufferedReader br = new BufferedReader(new FileReader(levelFile));
             String line;
@@ -145,6 +147,7 @@ public class WorldSaveManager {
                 String val = parts[1];
                 switch (key) {
                     case "seed": seed = Long.parseLong(val); break;
+                    case "timeOfDay": timeOfDay = Float.parseFloat(val); break;
                     case "playerX": px = Float.parseFloat(val); break;
                     case "playerY": py = Float.parseFloat(val); break;
                     case "playerZ": pz = Float.parseFloat(val); break;
@@ -176,12 +179,17 @@ public class WorldSaveManager {
                     int idx = Integer.parseInt(slotParts[0]);
                     ItemType type = ItemType.valueOf(slotParts[1]);
                     int count = Integer.parseInt(slotParts[2]);
+                    int durability = slotParts.length > 3 ? Integer.parseInt(slotParts[3]) : -1;
                     inv[idx] = new ItemStack(type, count);
+                    if (durability != -1) {
+                        inv[idx].setDurability(durability);
+                    }
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return timeOfDay;
     }
 
     public static byte[] loadChunkData(String worldName, int chunkX, int chunkZ) {

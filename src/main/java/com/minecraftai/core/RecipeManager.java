@@ -30,7 +30,8 @@ public class RecipeManager {
         "planks.json",
         "crafting_table.json",
         "stick.json",
-        "furnace.json"
+        "furnace.json",
+        "wooden_pickaxe.json"
     };
 
     public static void loadRecipes() {

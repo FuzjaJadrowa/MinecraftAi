@@ -409,13 +409,19 @@ public class World {
 
     private void dropFurnaceContents(int x, int y, int z, Furnace furnace) {
         if (furnace.getInput() != null) {
-            spawnDroppedItem(x + 0.5f, y + 0.5f, z + 0.5f, furnace.getInput().getType());
+            for (int i = 0; i < furnace.getInput().getCount(); i++) {
+                spawnDroppedItem(x + 0.5f, y + 0.5f, z + 0.5f, furnace.getInput().getType());
+            }
         }
         if (furnace.getFuel() != null) {
-            spawnDroppedItem(x + 0.5f, y + 0.5f, z + 0.5f, furnace.getFuel().getType());
+            for (int i = 0; i < furnace.getFuel().getCount(); i++) {
+                spawnDroppedItem(x + 0.5f, y + 0.5f, z + 0.5f, furnace.getFuel().getType());
+            }
         }
         if (furnace.getOutput() != null) {
-            spawnDroppedItem(x + 0.5f, y + 0.5f, z + 0.5f, furnace.getOutput().getType());
+            for (int i = 0; i < furnace.getOutput().getCount(); i++) {
+                spawnDroppedItem(x + 0.5f, y + 0.5f, z + 0.5f, furnace.getOutput().getType());
+            }
         }
     }
 

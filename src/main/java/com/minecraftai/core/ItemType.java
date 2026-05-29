@@ -10,7 +10,8 @@ public enum ItemType {
     CRAFTING_TABLE,
     STICK,
     FURNACE,
-    STONE;
+    STONE,
+    WOODEN_PICKAXE;
 
     private int textureId = 0;
 
@@ -40,6 +41,9 @@ public enum ItemType {
                     break;
                 case STONE:
                     textureId = TextureLoader.loadTexture("/assets/textures/block/stone.png");
+                    break;
+                case WOODEN_PICKAXE:
+                    textureId = TextureLoader.loadTexture("/assets/textures/item/wooden_pickaxe.png");
                     break;
             }
         }

@@ -70,7 +70,7 @@ public class Game {
         init();
         loop();
         if (world != null && player != null && world.getWorldName() != null) {
-            WorldSaveManager.saveWorld(world, player, world.getWorldName());
+            WorldSaveManager.saveWorld(world, player, timeOfDay, world.getWorldName());
         }
         glfwDestroyWindow(window);
         glfwTerminate();
@@ -541,10 +541,11 @@ public class Game {
         player = new Player(world);
 
         if (WorldSaveManager.worldExists(worldName)) {
-            WorldSaveManager.loadWorld(world, player, worldName);
+            this.timeOfDay = WorldSaveManager.loadWorld(world, player, worldName);
         } else {
             player.respawn();
-            WorldSaveManager.saveWorld(world, player, worldName);
+            this.timeOfDay = 6000.0f;
+            WorldSaveManager.saveWorld(world, player, this.timeOfDay, worldName);
         }
 
         hotbar = new Hotbar(player);
@@ -567,7 +568,7 @@ public class Game {
 
     public void saveAndQuit() {
         if (world != null && player != null && world.getWorldName() != null) {
-            WorldSaveManager.saveWorld(world, player, world.getWorldName());
+            WorldSaveManager.saveWorld(world, player, timeOfDay, world.getWorldName());
         }
         world = null;
         player = null;
@@ -903,6 +904,30 @@ public class Game {
                     addChatMessage("Gamma enabled (full bright)!");
                 } else {
                     addChatMessage("Gamma disabled!");
+                }
+                break;
+            case "time":
+                if (parts.length >= 2) {
+                    String timeArg = parts[1].toLowerCase();
+                    if (timeArg.equals("day")) {
+                        timeOfDay = 6000.0f;
+                        addChatMessage("Set time to day (6000)");
+                    } else if (timeArg.equals("night")) {
+                        timeOfDay = 18000.0f;
+                        addChatMessage("Set time to night (18000)");
+                    } else {
+                        try {
+                            float val = Float.parseFloat(timeArg);
+                            if (val < 0.0f) val = 0.0f;
+                            if (val >= 24000.0f) val = val % 24000.0f;
+                            timeOfDay = val;
+                            addChatMessage("Set time to " + (int)val);
+                        } catch (NumberFormatException e) {
+                            addChatMessage("Usage: /time [day|night|<number>]");
+                        }
+                    }
+                } else {
+                    addChatMessage("Usage: /time [day|night|<number>]");
                 }
                 break;
             default:

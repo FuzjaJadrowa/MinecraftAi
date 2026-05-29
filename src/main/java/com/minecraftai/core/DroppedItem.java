@@ -76,6 +76,27 @@ public class DroppedItem {
 
         glScalef(0.25f, 0.25f, 0.25f);
 
+        if (type == ItemType.STICK || type == ItemType.WOODEN_PICKAXE) {
+            glEnable(GL_TEXTURE_2D);
+            glBindTexture(GL_TEXTURE_2D, type.getTextureId());
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+            float r = 0.5f;
+            glBegin(GL_QUADS);
+            glTexCoord2f(0.0f, 0.0f); glVertex3f(-r, -r, 0.0f);
+            glTexCoord2f(1.0f, 0.0f); glVertex3f(r, -r, 0.0f);
+            glTexCoord2f(1.0f, 1.0f); glVertex3f(r, r, 0.0f);
+            glTexCoord2f(0.0f, 1.0f); glVertex3f(-r, r, 0.0f);
+            glEnd();
+
+            glDisable(GL_BLEND);
+            glDisable(GL_TEXTURE_2D);
+            glPopMatrix();
+            return;
+        }
+
         float r = 0.5f;
 
         glEnable(GL_TEXTURE_2D);
@@ -147,6 +168,8 @@ public class DroppedItem {
         switch (type) {
             case DIRT:
                 return 1;
+            case STONE:
+                return 2;
             case COBBLESTONE:
                 return 3;
             case LOG:
@@ -154,6 +177,26 @@ public class DroppedItem {
                     return 5;
                 } else {
                     return 4;
+                }
+            case PLANKS:
+                return 9;
+            case CRAFTING_TABLE:
+                if (face == Block.Face.TOP) {
+                    return 10;
+                } else if (face == Block.Face.BOTTOM) {
+                    return 9;
+                } else if (face == Block.Face.NORTH) {
+                    return 12;
+                } else {
+                    return 11;
+                }
+            case FURNACE:
+                if (face == Block.Face.TOP || face == Block.Face.BOTTOM) {
+                    return 13;
+                } else if (face == Block.Face.NORTH) {
+                    return 15;
+                } else {
+                    return 14;
                 }
             default:
                 return 0;

@@ -283,10 +283,10 @@ public class Chunk {
             float l2 = getVertexLight(world, globalX + 1, y + 1, globalZ + 1);
             float l3 = getVertexLight(world, globalX + 1, y + 1, globalZ);
             
-            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x + 1, y, z);
-            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z + 1);
-            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
-            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x + 1, y + h, z);
+            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x + 1, y, z);
+            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y, z + 1);
+            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y + h, z + 1);
+            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x + 1, y + h, z);
         }
 
         neighbor = (x - 1 < 0) ? world.getBlockAt(globalX - 1, y, globalZ) : blocks[x - 1][y][z];
@@ -298,10 +298,10 @@ public class Chunk {
             float l2 = getVertexLight(world, globalX - 1, y + 1, globalZ + 1);
             float l3 = getVertexLight(world, globalX - 1, y + 1, globalZ);
             
-            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
-            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x, y, z + 1);
-            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x, y + h, z + 1);
-            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z);
+            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y, z);
+            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x, y, z + 1);
+            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x, y + h, z + 1);
+            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y + h, z);
         }
 
         neighbor = (z + 1 >= CHUNK_SIZE_Z) ? world.getBlockAt(globalX, y, globalZ + 1) : blocks[x][y][z + 1];
@@ -313,10 +313,10 @@ public class Chunk {
             float l2 = getVertexLight(world, globalX + 1, y + 1, globalZ + 1);
             float l3 = getVertexLight(world, globalX, y + 1, globalZ + 1);
             
-            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z + 1);
-            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z + 1);
-            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z + 1);
-            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z + 1);
+            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y, z + 1);
+            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y, z + 1);
+            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y + h, z + 1);
+            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y + h, z + 1);
         }
 
         neighbor = (z - 1 < 0) ? world.getBlockAt(globalX, y, globalZ - 1) : blocks[x][y][z - 1];
@@ -328,10 +328,10 @@ public class Chunk {
             float l2 = getVertexLight(world, globalX + 1, y + 1, globalZ - 1);
             float l3 = getVertexLight(world, globalX, y + 1, globalZ - 1);
             
-            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y, z);
-            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y, z);
-            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y + h, z);
-            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y + h, z);
+            glColor4f(l0, l0, l0, alpha); glTexCoord2f(uv[0], uv[3]); glVertex3f(x, y, z);
+            glColor4f(l1, l1, l1, alpha); glTexCoord2f(uv[2], uv[3]); glVertex3f(x + 1, y, z);
+            glColor4f(l2, l2, l2, alpha); glTexCoord2f(uv[2], uv[1]); glVertex3f(x + 1, y + h, z);
+            glColor4f(l3, l3, l3, alpha); glTexCoord2f(uv[0], uv[1]); glVertex3f(x, y + h, z);
         }
         glColor4f(1.0f, 1.0f, 1.0f, 1.0f); // Reset color
     }

@@ -10,7 +10,7 @@ import static org.lwjgl.opengl.GL11.*;
 public class GuiRenderer {
 
     public static void draw3DBlock(float centerX, float centerY, float size, ItemType type, float currentW, float currentH) {
-        if (type == ItemType.STICK) {
+        if (type == ItemType.STICK || type == ItemType.WOODEN_PICKAXE) {
             glMatrixMode(GL_PROJECTION);
             glPushMatrix();
             glLoadIdentity();

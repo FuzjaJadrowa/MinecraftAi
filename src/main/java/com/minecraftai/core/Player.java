@@ -293,10 +293,28 @@ public class Player {
 
                 if (breakProgress >= 1.0f) {
                     world.removeBlock(targetX, targetY, targetZ);
-                    ItemType drop = target.getItemDrop();
-                    if (drop != null) {
-                        world.spawnDroppedItem(targetX + 0.5f, targetY + 0.5f, targetZ + 0.5f, drop);
+                    
+                    boolean dropsItems = true;
+                    String blockName = target.getClass().getSimpleName();
+                    if (blockName.equals("Stone") || blockName.equals("Cobblestone") || blockName.equals("Furnace")) {
+                        dropsItems = isPickaxeHeld();
                     }
+
+                    if (dropsItems) {
+                        ItemType drop = target.getItemDrop();
+                        if (drop != null) {
+                            world.spawnDroppedItem(targetX + 0.5f, targetY + 0.5f, targetZ + 0.5f, drop);
+                        }
+                    }
+
+                    if (isPickaxeHeld()) {
+                        ItemStack held = inventory[selectedSlot];
+                        held.decrementDurability();
+                        if (held.isBroken()) {
+                            inventory[selectedSlot] = null;
+                        }
+                    }
+
                     breakProgress = 0.0f;
                     currentTargetBlock = null;
                 }
@@ -444,10 +462,16 @@ public class Player {
         }
     }
 
+    private boolean isPickaxeHeld() {
+        ItemStack held = inventory[selectedSlot];
+        return held != null && held.getType() == ItemType.WOODEN_PICKAXE;
+    }
+
     private float getBreakSpeed(Block target) {
         if (!target.isDestructible()) return 0.0f;
         if (godMode) return 1000.0f;
         String name = target.getClass().getSimpleName();
+        boolean hasPickaxe = isPickaxeHeld();
         switch (name) {
             case "Leaves":
                 return 5.0f;
@@ -458,7 +482,9 @@ public class Player {
                 return 1.25f;
             case "Stone":
             case "Cobblestone":
-                return 0.7f;
+                return hasPickaxe ? 1.8f : 0.7f;
+            case "Furnace":
+                return hasPickaxe ? 2.0f : 1.0f;
             default:
                 return 1.0f;
         }
