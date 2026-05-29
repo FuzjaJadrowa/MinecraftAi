@@ -11,7 +11,10 @@ public enum ItemType {
     STICK,
     FURNACE,
     STONE,
-    WOODEN_PICKAXE;
+    WOODEN_PICKAXE,
+    KEBAB_ORE,
+    KEBAB_BLOCK,
+    KEBAB;
 
     private int textureId = 0;
 
@@ -44,6 +47,15 @@ public enum ItemType {
                     break;
                 case WOODEN_PICKAXE:
                     textureId = TextureLoader.loadTexture("/assets/textures/item/wooden_pickaxe.png");
+                    break;
+                case KEBAB_ORE:
+                    textureId = TextureLoader.loadTexture("/assets/textures/block/kebab_ore.png");
+                    break;
+                case KEBAB_BLOCK:
+                    textureId = TextureLoader.loadTexture("/assets/textures/block/kebab_block.png");
+                    break;
+                case KEBAB:
+                    textureId = TextureLoader.loadTexture("/assets/textures/item/kebab.png");
                     break;
             }
         }

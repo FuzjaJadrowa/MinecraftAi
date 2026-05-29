@@ -31,7 +31,8 @@ public class RecipeManager {
         "crafting_table.json",
         "stick.json",
         "furnace.json",
-        "wooden_pickaxe.json"
+        "wooden_pickaxe.json",
+        "kebab_block.json"
     };
 
     public static void loadRecipes() {

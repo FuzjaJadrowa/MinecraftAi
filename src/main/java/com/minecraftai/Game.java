@@ -48,6 +48,7 @@ public class Game {
     private int cameraMode = 0;
     private float lastDeltaTime = 0.016f;
     private boolean showDebug = false;
+    private double oreVisionTimer = 0.0;
     private int fps = 0;
     private int frameCount = 0;
     private double fpsTimer = 0.0;
@@ -312,6 +313,10 @@ public class Game {
             }
 
             if (isTickingState) {
+                if (oreVisionTimer > 0.0) {
+                    oreVisionTimer -= deltaTime;
+                    if (oreVisionTimer < 0.0) oreVisionTimer = 0.0;
+                }
                 accumulator += deltaTime;
                 while (accumulator >= PHYSICS_STEP) {
                     if (currentState == GameState.IN_GAME) {
@@ -401,6 +406,9 @@ public class Game {
             glEnable(GL_LIGHTING);
         }
         world.render(player);
+        if (oreVisionTimer > 0.0) {
+            renderOreVisionOutline();
+        }
         player.renderPlayerModel(alpha, cameraMode);
 
         renderBreakingBlockOverlay();
@@ -930,6 +938,10 @@ public class Game {
                     addChatMessage("Usage: /time [day|night|<number>]");
                 }
                 break;
+            case "orevision":
+                oreVisionTimer = 10.0;
+                addChatMessage("Ore vision activated for 10 seconds!");
+                break;
             default:
                 addChatMessage("Unknown command: " + commandName);
                 break;
@@ -1091,5 +1103,78 @@ public class Game {
         glMatrixMode(GL_MODELVIEW);
         glPopMatrix();
         glEnable(GL_DEPTH_TEST);
+    }
+
+    private void renderOreVisionOutline() {
+        glDisable(GL_LIGHTING);
+        glDisable(GL_DEPTH_TEST);
+        glDepthMask(false);
+        glDisable(GL_TEXTURE_2D);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+        glColor4f(0.0f, 1.0f, 0.0f, 0.8f);
+        glLineWidth(2.0f);
+
+        int playerChunkX = (int) Math.floor(player.getX() / Chunk.CHUNK_SIZE_X);
+        int playerChunkZ = (int) Math.floor(player.getZ() / Chunk.CHUNK_SIZE_Z);
+        int radius = 4;
+
+        glBegin(GL_LINES);
+        for (int x = playerChunkX - radius; x <= playerChunkX + radius; x++) {
+            for (int z = playerChunkZ - radius; z <= playerChunkZ + radius; z++) {
+                Chunk chunk = world.getChunks().get(x + "_" + z);
+                if (chunk != null && chunk.isGenerated()) {
+                    int startX = chunk.getWorldX() * Chunk.CHUNK_SIZE_X;
+                    int startZ = chunk.getWorldZ() * Chunk.CHUNK_SIZE_Z;
+                    for (int cx = 0; cx < Chunk.CHUNK_SIZE_X; cx++) {
+                        for (int cz = 0; cz < Chunk.CHUNK_SIZE_Z; cz++) {
+                            for (int cy = 0; cy < 64; cy++) {
+                                Block b = chunk.getBlock(cx, cy, cz);
+                                if (b instanceof KebabOre) {
+                                    float bx = startX + cx;
+                                    float by = cy;
+                                    float bz = startZ + cz;
+                                    drawWireframeBox(bx, by, bz);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        glEnd();
+
+        glLineWidth(1.0f);
+        glDisable(GL_BLEND);
+        glDepthMask(true);
+        glEnable(GL_DEPTH_TEST);
+        if (!GAMMA_FULL_BRIGHT) {
+            glEnable(GL_LIGHTING);
+        }
+    }
+
+    private void drawWireframeBox(float bx, float by, float bz) {
+        float minX = bx - 0.002f;
+        float maxX = bx + 1.002f;
+        float minY = by - 0.002f;
+        float maxY = by + 1.002f;
+        float minZ = bz - 0.002f;
+        float maxZ = bz + 1.002f;
+
+        glVertex3f(minX, minY, minZ); glVertex3f(maxX, minY, minZ);
+        glVertex3f(maxX, minY, minZ); glVertex3f(maxX, minY, maxZ);
+        glVertex3f(maxX, minY, maxZ); glVertex3f(minX, minY, maxZ);
+        glVertex3f(minX, minY, maxZ); glVertex3f(minX, minY, minZ);
+
+        glVertex3f(minX, maxY, minZ); glVertex3f(maxX, maxY, minZ);
+        glVertex3f(maxX, maxY, minZ); glVertex3f(maxX, maxY, maxZ);
+        glVertex3f(maxX, maxY, maxZ); glVertex3f(minX, maxY, maxZ);
+        glVertex3f(minX, maxY, maxZ); glVertex3f(minX, maxY, minZ);
+
+        glVertex3f(minX, minY, minZ); glVertex3f(minX, maxY, minZ);
+        glVertex3f(maxX, minY, minZ); glVertex3f(maxX, maxY, minZ);
+        glVertex3f(maxX, minY, maxZ); glVertex3f(maxX, maxY, maxZ);
+        glVertex3f(minX, minY, maxZ); glVertex3f(minX, maxY, maxZ);
     }
 }

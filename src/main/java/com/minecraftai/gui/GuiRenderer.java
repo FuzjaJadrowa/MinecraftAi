@@ -10,7 +10,7 @@ import static org.lwjgl.opengl.GL11.*;
 public class GuiRenderer {
 
     public static void draw3DBlock(float centerX, float centerY, float size, ItemType type, float currentW, float currentH) {
-        if (type == ItemType.STICK || type == ItemType.WOODEN_PICKAXE) {
+        if (type == ItemType.STICK || type == ItemType.WOODEN_PICKAXE || type == ItemType.KEBAB) {
             glMatrixMode(GL_PROJECTION);
             glPushMatrix();
             glLoadIdentity();
@@ -164,6 +164,10 @@ public class GuiRenderer {
                 } else {
                     return 14;
                 }
+            case KEBAB_ORE:
+                return 17;
+            case KEBAB_BLOCK:
+                return 18;
             default:
                 return 0;
         }

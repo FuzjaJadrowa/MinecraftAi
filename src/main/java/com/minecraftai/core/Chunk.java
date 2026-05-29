@@ -98,7 +98,11 @@ public class Chunk {
                         } else if (y > surfaceHeight - 4) {
                             setBlock(x, y, z, new Dirt(globalX, y, globalZ), false);
                         } else {
-                            setBlock(x, y, z, new Stone(globalX, y, globalZ), false);
+                            if (y < surfaceHeight - 5 && random.nextInt(70) == 0) {
+                                setBlock(x, y, z, new KebabOre(globalX, y, globalZ), false);
+                            } else {
+                                setBlock(x, y, z, new Stone(globalX, y, globalZ), false);
+                            }
                         }
                     }
                 }

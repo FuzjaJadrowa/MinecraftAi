@@ -27,7 +27,9 @@ public class TextureAtlas {
         "/assets/textures/block/furnace_top.png",
         "/assets/textures/block/furnace_side.png",
         "/assets/textures/block/furnace_front.png",
-        "/assets/textures/block/furnace_front_on.png"
+        "/assets/textures/block/furnace_front_on.png",
+        "/assets/textures/block/kebab_ore.png",
+        "/assets/textures/block/kebab_block.png"
     };
 
     private static int atlasTextureID = 0;

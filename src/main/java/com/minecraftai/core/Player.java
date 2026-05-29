@@ -296,8 +296,8 @@ public class Player {
                     
                     boolean dropsItems = true;
                     String blockName = target.getClass().getSimpleName();
-                    if (blockName.equals("Stone") || blockName.equals("Cobblestone") || blockName.equals("Furnace")) {
-                        dropsItems = isPickaxeHeld();
+                    if (blockName.equals("Stone") || blockName.equals("Cobblestone") || blockName.equals("Furnace") || blockName.equals("KebabOre") || blockName.equals("KebabBlock")) {
+                        dropsItems = isPickaxeHeld() || godMode;
                     }
 
                     if (dropsItems) {
@@ -482,6 +482,8 @@ public class Player {
                 return 1.25f;
             case "Stone":
             case "Cobblestone":
+            case "KebabOre":
+            case "KebabBlock":
                 return hasPickaxe ? 1.8f : 0.7f;
             case "Furnace":
                 return hasPickaxe ? 2.0f : 1.0f;
@@ -696,6 +698,12 @@ public class Player {
                             break;
                         case FURNACE:
                             newBlock = new Furnace(prevX, prevY, prevZ, getFacingDirection());
+                            break;
+                        case KEBAB_ORE:
+                            newBlock = new KebabOre(prevX, prevY, prevZ);
+                            break;
+                        case KEBAB_BLOCK:
+                            newBlock = new KebabBlock(prevX, prevY, prevZ);
                             break;
                     }
 

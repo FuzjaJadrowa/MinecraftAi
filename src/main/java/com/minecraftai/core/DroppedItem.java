@@ -76,7 +76,7 @@ public class DroppedItem {
 
         glScalef(0.25f, 0.25f, 0.25f);
 
-        if (type == ItemType.STICK || type == ItemType.WOODEN_PICKAXE) {
+        if (type == ItemType.STICK || type == ItemType.WOODEN_PICKAXE || type == ItemType.KEBAB) {
             glEnable(GL_TEXTURE_2D);
             glBindTexture(GL_TEXTURE_2D, type.getTextureId());
             glEnable(GL_BLEND);
@@ -198,6 +198,10 @@ public class DroppedItem {
                 } else {
                     return 14;
                 }
+            case KEBAB_ORE:
+                return 17;
+            case KEBAB_BLOCK:
+                return 18;
             default:
                 return 0;
         }

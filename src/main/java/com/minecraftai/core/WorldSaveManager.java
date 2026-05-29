@@ -231,6 +231,8 @@ public class WorldSaveManager {
             case "Planks": return 10;
             case "CraftingTable": return 11;
             case "Furnace": return 12;
+            case "KebabOre": return 13;
+            case "KebabBlock": return 14;
             default: return 0;
         }
     }
@@ -249,6 +251,8 @@ public class WorldSaveManager {
             case 10: return new Planks(x, y, z);
             case 11: return new CraftingTable(x, y, z);
             case 12: return new Furnace(x, y, z);
+            case 13: return new KebabOre(x, y, z);
+            case 14: return new KebabBlock(x, y, z);
             default: return null;
         }
     }

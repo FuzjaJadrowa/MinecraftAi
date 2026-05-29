@@ -139,6 +139,9 @@ public class Furnace extends Block {
         if (inputStack.getType() == ItemType.COBBLESTONE) {
             return ItemType.STONE;
         }
+        if (inputStack.getType() == ItemType.KEBAB_ORE) {
+            return ItemType.KEBAB;
+        }
         return null;
     }
 
