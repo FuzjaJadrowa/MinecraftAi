@@ -47,8 +47,10 @@ public class TextureAtlas {
                 try (InputStream is = TextureAtlas.class.getResourceAsStream(TEXTURE_PATHS[i])) {
                     if (is == null) throw new IOException("Nie znaleziono tekstury: " + TEXTURE_PATHS[i]);
                     images[i] = ImageIO.read(is);
-                    if (i == 0) {
+                    if (images[i].getWidth() > tileW) {
                         tileW = images[i].getWidth();
+                    }
+                    if (images[i].getHeight() > tileH) {
                         tileH = images[i].getHeight();
                     }
                 }
