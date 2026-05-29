@@ -22,7 +22,12 @@ public class Chunk {
 
     private boolean needsRebuild = true;
     private volatile boolean isGenerated = false;
+    private volatile boolean isGenerating = false;
     private boolean isModified = false;
+
+    public boolean isGenerating() {
+        return isGenerating;
+    }
 
     public Chunk(int chunkX, int chunkZ) {
         this.worldX = chunkX;
@@ -30,87 +35,92 @@ public class Chunk {
     }
 
     public void generate(World world) {
-        if (isGenerated) {
+        if (isGenerated || isGenerating) {
             return;
         }
 
-        int startX = worldX * CHUNK_SIZE_X;
-        int startZ = worldZ * CHUNK_SIZE_Z;
+        isGenerating = true;
+        try {
+            int startX = worldX * CHUNK_SIZE_X;
+            int startZ = worldZ * CHUNK_SIZE_Z;
 
-        int[][] surfaceHeights = new int[CHUNK_SIZE_X][CHUNK_SIZE_Z];
-        boolean[][] isGrass = new boolean[CHUNK_SIZE_X][CHUNK_SIZE_Z];
+            int[][] surfaceHeights = new int[CHUNK_SIZE_X][CHUNK_SIZE_Z];
+            boolean[][] isGrass = new boolean[CHUNK_SIZE_X][CHUNK_SIZE_Z];
 
-        for (int x = 0; x < CHUNK_SIZE_X; x++) {
-            for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-                int globalX = startX + x;
-                int globalZ = startZ + z;
-
-                double terrainNoise = world.getTerrainNoise(globalX, globalZ);
-                int surfaceHeight;
-                if (terrainNoise < 0) {
-                    surfaceHeight = World.BASE_Y + (int) (terrainNoise * 14.0);
-                } else {
-                    double hillNoise = Math.pow(terrainNoise, 1.5) * 44.0;
-                    surfaceHeight = World.BASE_Y + (int) hillNoise;
-                }
-
-                surfaceHeights[x][z] = surfaceHeight;
-
-                for (int y = 0; y < CHUNK_SIZE_Y; y++) {
-                    if (y > surfaceHeight) {
-                        if (y <= World.WATER_LEVEL) {
-                            setBlock(x, y, z, new Water(globalX, y, globalZ), false);
-                        } else {
-                            blocks[x][y][z] = null;
-                        }
-                        continue;
-                    }
-
-                    // Bedrock na samym dole mapy (niezniszczalny)
-                    if (y == 0) {
-                        setBlock(x, y, z, new Bedrock(globalX, y, globalZ), false);
-                        continue;
-                    }
-                    if (y < 4 && random.nextInt(y + 1) == 0) {
-                        setBlock(x, y, z, new Bedrock(globalX, y, globalZ), false);
-                        continue;
-                    }
-
-                    if (world.isCave(globalX, y, globalZ, surfaceHeight)) {
-                        blocks[x][y][z] = null;
-                        continue;
-                    }
-
-                    if (y == surfaceHeight) {
-                        if (y >= World.WATER_LEVEL) {
-                            setBlock(x, y, z, new GrassBlock(globalX, y, globalZ), false);
-                            isGrass[x][z] = true;
-                        } else {
-                            setBlock(x, y, z, new Dirt(globalX, y, globalZ), false);
-                        }
-                    } else if (y > surfaceHeight - 4) {
-                        setBlock(x, y, z, new Dirt(globalX, y, globalZ), false);
-                    } else {
-                        setBlock(x, y, z, new Stone(globalX, y, globalZ), false);
-                    }
-                }
-            }
-        }
-
-        for (int x = 0; x < CHUNK_SIZE_X; x++) {
-            for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-                if (isGrass[x][z] && random.nextInt(100) == 0) {
+            for (int x = 0; x < CHUNK_SIZE_X; x++) {
+                for (int z = 0; z < CHUNK_SIZE_Z; z++) {
                     int globalX = startX + x;
                     int globalZ = startZ + z;
-                    int y = surfaceHeights[x][z] + 1;
 
-                    Tree.generateTree(world, globalX, y, globalZ);
+                    double terrainNoise = world.getTerrainNoise(globalX, globalZ);
+                    int surfaceHeight;
+                    if (terrainNoise < 0) {
+                        surfaceHeight = World.BASE_Y + (int) (terrainNoise * 14.0);
+                    } else {
+                        double hillNoise = Math.pow(terrainNoise, 1.5) * 44.0;
+                        surfaceHeight = World.BASE_Y + (int) hillNoise;
+                    }
+
+                    surfaceHeights[x][z] = surfaceHeight;
+
+                    for (int y = 0; y < CHUNK_SIZE_Y; y++) {
+                        if (y > surfaceHeight) {
+                            if (y <= World.WATER_LEVEL) {
+                                setBlock(x, y, z, new Water(globalX, y, globalZ), false);
+                            } else {
+                                blocks[x][y][z] = null;
+                            }
+                            continue;
+                        }
+
+                        // Bedrock na samym dole mapy (niezniszczalny)
+                        if (y == 0) {
+                            setBlock(x, y, z, new Bedrock(globalX, y, globalZ), false);
+                            continue;
+                        }
+                        if (y < 4 && random.nextInt(y + 1) == 0) {
+                            setBlock(x, y, z, new Bedrock(globalX, y, globalZ), false);
+                            continue;
+                        }
+
+                        if (world.isCave(globalX, y, globalZ, surfaceHeight)) {
+                            blocks[x][y][z] = null;
+                            continue;
+                        }
+
+                        if (y == surfaceHeight) {
+                            if (y >= World.WATER_LEVEL) {
+                                setBlock(x, y, z, new GrassBlock(globalX, y, globalZ), false);
+                                isGrass[x][z] = true;
+                            } else {
+                                setBlock(x, y, z, new Dirt(globalX, y, globalZ), false);
+                            }
+                        } else if (y > surfaceHeight - 4) {
+                            setBlock(x, y, z, new Dirt(globalX, y, globalZ), false);
+                        } else {
+                            setBlock(x, y, z, new Stone(globalX, y, globalZ), false);
+                        }
+                    }
                 }
             }
-        }
 
-        this.needsRebuild = true;
-        this.isGenerated = true;
+            for (int x = 0; x < CHUNK_SIZE_X; x++) {
+                for (int z = 0; z < CHUNK_SIZE_Z; z++) {
+                    if (isGrass[x][z] && random.nextInt(100) == 0) {
+                        int globalX = startX + x;
+                        int globalZ = startZ + z;
+                        int y = surfaceHeights[x][z] + 1;
+
+                        Tree.generateTree(world, globalX, y, globalZ);
+                    }
+                }
+            }
+
+            this.needsRebuild = true;
+        } finally {
+            this.isGenerating = false;
+            this.isGenerated = true;
+        }
     }
 
     public boolean isGenerated() {

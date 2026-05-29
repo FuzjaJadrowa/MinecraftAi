@@ -40,9 +40,9 @@ public class Player {
         this.world = world;
         float spawnY = 80.0f;
         if (world != null) {
-            world.getOrLoadChunk(0, 0);
+            world.getOrLoadChunk(0, 0, true);
             for (int y = Chunk.CHUNK_SIZE_Y - 1; y >= 0; y--) {
-                Block block = world.getBlockAt(0, y, 0);
+                Block block = world.getBlockAt(0, y, 0, true);
                 if (block != null) {
                     spawnY = y + 1.0f;
                     break;
@@ -484,7 +484,7 @@ public class Player {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
 
-                    Block b = world.getBlockAt(x, y, z);
+                    Block b = world.getBlockAt(x, y, z, true);
 
                     if (b != null) {
                         if (b.collidesWithPlayer(nextX, nextY, nextZ)) {
@@ -816,9 +816,9 @@ public class Player {
     public void respawn() {
         float spawnY = 80.0f;
         if (world != null) {
-            world.getOrLoadChunk(0, 0);
+            world.getOrLoadChunk(0, 0, true);
             for (int y = Chunk.CHUNK_SIZE_Y - 1; y >= 0; y--) {
-                Block block = world.getBlockAt(0, y, 0);
+                Block block = world.getBlockAt(0, y, 0, true);
                 if (block != null) {
                     spawnY = y + 1.0f;
                     break;

@@ -55,14 +55,18 @@ public class World {
     }
 
     public Chunk getOrLoadChunk(int chunkX, int chunkZ) {
+        return getOrLoadChunk(chunkX, chunkZ, false);
+    }
+
+    public Chunk getOrLoadChunk(int chunkX, int chunkZ, boolean force) {
         String key = chunkX + "_" + chunkZ;
 
         Chunk chunk = chunks.computeIfAbsent(key, k -> {
             return new Chunk(chunkX, chunkZ);
         });
 
-        if (!chunk.isGenerated()) {
-            if (chunksGeneratedThisFrame < 8) {
+        if (!chunk.isGenerated() && !chunk.isGenerating()) {
+            if (force || chunksGeneratedThisFrame < 8) {
                 boolean loaded = false;
                 if (worldName != null) {
                     byte[] data = WorldSaveManager.loadChunkData(worldName, chunkX, chunkZ);
@@ -120,11 +124,22 @@ public class World {
         int playerChunkX = (int) Math.floor(player.getX() / Chunk.CHUNK_SIZE_X);
         int playerChunkZ = (int) Math.floor(player.getZ() / Chunk.CHUNK_SIZE_Z);
 
-        List<Chunk> visibleChunks = new ArrayList<>();
+        List<int[]> chunkCoords = new ArrayList<>();
         for (int x = playerChunkX - RENDER_DISTANCE; x <= playerChunkX + RENDER_DISTANCE; x++) {
             for (int z = playerChunkZ - RENDER_DISTANCE; z <= playerChunkZ + RENDER_DISTANCE; z++) {
-                visibleChunks.add(getOrLoadChunk(x, z));
+                chunkCoords.add(new int[]{x, z});
             }
+        }
+
+        chunkCoords.sort((a, b) -> {
+            int distA = (a[0] - playerChunkX) * (a[0] - playerChunkX) + (a[1] - playerChunkZ) * (a[1] - playerChunkZ);
+            int distB = (b[0] - playerChunkX) * (b[0] - playerChunkX) + (b[1] - playerChunkZ) * (b[1] - playerChunkZ);
+            return Integer.compare(distA, distB);
+        });
+
+        List<Chunk> visibleChunks = new ArrayList<>();
+        for (int[] coord : chunkCoords) {
+            visibleChunks.add(getOrLoadChunk(coord[0], coord[1]));
         }
 
         glDisable(GL_BLEND);
@@ -183,6 +198,10 @@ public class World {
     }
 
     public Block getBlockAt(int globalX, int globalY, int globalZ) {
+        return getBlockAt(globalX, globalY, globalZ, false);
+    }
+
+    public Block getBlockAt(int globalX, int globalY, int globalZ, boolean force) {
         if (globalY < 0 || globalY >= Chunk.CHUNK_SIZE_Y) {
             return null;
         }
@@ -190,7 +209,7 @@ public class World {
         int chunkX = (int) Math.floor((double) globalX / Chunk.CHUNK_SIZE_X);
         int chunkZ = (int) Math.floor((double) globalZ / Chunk.CHUNK_SIZE_Z);
 
-        Chunk chunk = getOrLoadChunk(chunkX, chunkZ);
+        Chunk chunk = getOrLoadChunk(chunkX, chunkZ, force);
 
         int localX = globalX % Chunk.CHUNK_SIZE_X;
         if (localX < 0) localX += Chunk.CHUNK_SIZE_X;
